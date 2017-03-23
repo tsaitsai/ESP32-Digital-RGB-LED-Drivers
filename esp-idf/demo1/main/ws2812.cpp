@@ -71,9 +71,10 @@ typedef struct {
   uint32_t TRS;
 } timingParams;
 
+// Note: despite WS2812/WS2812B specs, a reset could occur before 9000ns! Don't idle too long
 timingParams ledParams;
 timingParams ledParams_WS2812  = { .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000};
-timingParams ledParams_WS2812B = { .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000};
+timingParams ledParams_WS2812B = { .T0H = 450, .T1H = 850, .T0L = 850, .T1L = 450, .TRS =  50000};
 timingParams ledParams_SK6812  = { .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000};
 timingParams ledParams_WS2813  = { .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000};
 
