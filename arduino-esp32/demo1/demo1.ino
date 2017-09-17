@@ -64,6 +64,10 @@ void dumpDebugBuffer(int id, char * debugBuffer) {
 void setup() {
   Serial.begin(115200);
   Serial.println("Initializing...");
+  pinMode (16, OUTPUT); digitalWrite (16, LOW);
+  pinMode (17, OUTPUT); digitalWrite (17, LOW);
+  pinMode (18, OUTPUT); digitalWrite (18, LOW);
+  pinMode (19, OUTPUT); digitalWrite (19, LOW);
   if(ws2812_init(DATA_PIN, LED_WS2812B)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
