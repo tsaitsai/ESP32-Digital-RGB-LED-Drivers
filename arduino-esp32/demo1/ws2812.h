@@ -51,7 +51,7 @@ typedef struct {
 } strand_t;
 
 enum led_types {LED_WS2812, LED_WS2812B, LED_SK6812, LED_WS2813};
-extern int  ws2812_init(strand_t strands []);
+extern int  ws2812_init(strand_t strands [], int numStrands);
 extern void ws2812_setColors(strand_t * strand);
 
 inline rgbVal makeRGBVal(uint8_t r, uint8_t g, uint8_t b)

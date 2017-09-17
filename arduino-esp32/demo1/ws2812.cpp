@@ -93,10 +93,19 @@ typedef union {
   uint32_t val;
 } rmtPulsePair;
 
-static strand_t * localStrands;
-static uint8_t *ws2812_buffer = NULL;
+// TODO: rename potential keyword conflicts
+typedef struct {
+  uint8_t * buf;
+  uint16_t pos, len, half, bufIsDirty;
+  xSemaphoreHandle sem;
+} ws2812_buffer_states;
+
+static uint8_t * ws2812_buf = NULL;
 static uint16_t ws2812_pos, ws2812_len, ws2812_half, ws2812_bufIsDirty;
 static xSemaphoreHandle ws2812_sem = NULL;
+static ws2812_buffer_states * state_vars;
+
+static strand_t * localStrands;
 static intr_handle_t rmt_intr_handle = NULL;
 static rmtPulsePair ws2812_bitval_to_rmt_map[2];
 
@@ -147,7 +156,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
   ws2812_bufIsDirty = 1;
 
   for (i = 0; i < len; i++) {
-    byteval = ws2812_buffer[i + ws2812_pos];
+    byteval = ws2812_buf[i + ws2812_pos];
 
     #if DEBUG_WS2812_DRIVER
       snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s%d(", ws2812_debugBuffer, byteval);
@@ -193,12 +202,10 @@ void copyToRmtBlock_half(strand_t * pStrand)
 void ws2812_handleInterrupt(void *arg)
 {
   portBASE_TYPE taskAwoken = 0;
-  uint32_t tx_thr_event, ch0_tx_end;
-  int * foo = (int *)arg;
   #if DEBUG_WS2812_DRIVER
-    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sGot %d\n", ws2812_debugBuffer, (int *)arg);
+    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%shandling interrupt\n", ws2812_debugBuffer);
   #endif
-  //if (*foo == 43) return;
+  uint32_t tx_thr_event, ch0_tx_end;
   if (RMT.int_st.ch0_tx_thr_event) {
     copyToRmtBlock_half(&localStrands[0]);
     RMT.int_clr.ch0_tx_thr_event = 1;
@@ -211,13 +218,13 @@ void ws2812_handleInterrupt(void *arg)
   return;
 }
 
-int ws2812_init(strand_t strands [])
+int ws2812_init(strand_t strands [], int numStrands)
 {
   localStrands = strands;
   strand_t * pStrand = &strands[0];
-//  #if DEBUG_WS2812_DRIVER
-//    ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
-//  #endif
+  #if DEBUG_WS2812_DRIVER
+    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sws2812_init numStrands = %d\n", ws2812_debugBuffer, numStrands);
+  #endif
 
   switch (pStrand->ledType) {
     case LED_WS2812:
@@ -268,8 +275,7 @@ int ws2812_init(strand_t strands [])
   ws2812_bitval_to_rmt_map[1].duration0 = ledParams.T1H / (RMT_DURATION_NS * DIVIDER);
   ws2812_bitval_to_rmt_map[1].duration1 = ledParams.T1L / (RMT_DURATION_NS * DIVIDER);
 
-  int blahTODO = 43;
-  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, (void *)&blahTODO, &rmt_intr_handle);
+  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, NULL, &rmt_intr_handle);
 
   return 0;
 }
@@ -279,13 +285,13 @@ void ws2812_setColors(strand_t * pStrand)
   uint16_t i;
 
   ws2812_len = (pStrand->numPixels * 3) * sizeof(uint8_t);
-  ws2812_buffer = (uint8_t *)malloc(ws2812_len);
+  ws2812_buf = (uint8_t *)malloc(ws2812_len);
 
   for (i = 0; i < pStrand->numPixels; i++) {
     // Where color order is translated from RGB (e.g., WS2812 = GRB)
-    ws2812_buffer[0 + i * 3] = pStrand->pixels[i].g;
-    ws2812_buffer[1 + i * 3] = pStrand->pixels[i].r;
-    ws2812_buffer[2 + i * 3] = pStrand->pixels[i].b;
+    ws2812_buf[0 + i * 3] = pStrand->pixels[i].g;
+    ws2812_buf[1 + i * 3] = pStrand->pixels[i].r;
+    ws2812_buf[2 + i * 3] = pStrand->pixels[i].b;
   }
 
   ws2812_pos = 0;
@@ -310,7 +316,7 @@ void ws2812_setColors(strand_t * pStrand)
   vSemaphoreDelete(ws2812_sem);
   ws2812_sem = NULL;
 
-  free(ws2812_buffer);
+  free(ws2812_buf);
 
   return;
 }

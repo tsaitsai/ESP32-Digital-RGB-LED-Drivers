@@ -79,7 +79,8 @@ void setup()
 
   Serial.begin(115200);
   Serial.println("Initializing...");
-  if(ws2812_init(STRANDS)) {
+  int numStrands = sizeof(STRANDS)/sizeof(STRANDS[0]);
+  if(ws2812_init(STRANDS, numStrands)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
   }
@@ -88,10 +89,7 @@ void setup()
     dumpDebugBuffer(-2, ws2812_debugBuffer);
   #endif
   pStrand->pixels = (rgbVal*)malloc(sizeof(rgbVal) * pStrand->numPixels);
-  Serial.println("1");
   displayOff(pStrand);
-  Serial.println("2");
-  //delay(5000);
   #if DEBUG_WS2812_DRIVER
     dumpDebugBuffer(-1, ws2812_debugBuffer);
   #endif
