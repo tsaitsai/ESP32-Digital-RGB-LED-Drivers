@@ -48,10 +48,13 @@ typedef struct {
   int brightLimit;
   int numPixels;
   rgbVal * pixels;
+  void * _stateVars;
 } strand_t;
 
 enum led_types {LED_WS2812, LED_WS2812B, LED_SK6812, LED_WS2813};
+
 extern int  ws2812_init(strand_t strands [], int numStrands);
+
 extern void ws2812_setColors(strand_t * strand);
 
 inline rgbVal makeRGBVal(uint8_t r, uint8_t g, uint8_t b)
@@ -64,3 +67,4 @@ inline rgbVal makeRGBVal(uint8_t r, uint8_t g, uint8_t b)
 }
 
 #endif /* WS2812_DRIVER_H */
+

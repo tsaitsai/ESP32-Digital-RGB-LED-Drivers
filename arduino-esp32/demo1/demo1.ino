@@ -47,11 +47,11 @@ char * ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
 #endif
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-  {.rmtChannel = 0, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256, .pixels = NULL},
-//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256, .pixels = NULL},
-//  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256, .pixels = NULL},
-//  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256, .pixels = NULL},
-//  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256, .pixels = NULL},
+  {.rmtChannel = 0, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+//  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+//  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+//  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
 };
 
 // Forward declarations
@@ -88,7 +88,7 @@ void setup()
   #if DEBUG_WS2812_DRIVER
     dumpDebugBuffer(-2, ws2812_debugBuffer);
   #endif
-  pStrand->pixels = (rgbVal*)malloc(sizeof(rgbVal) * pStrand->numPixels);
+  pStrand->pixels = (rgbVal *)malloc(sizeof(rgbVal) * pStrand->numPixels);
   displayOff(pStrand);
   #if DEBUG_WS2812_DRIVER
     dumpDebugBuffer(-1, ws2812_debugBuffer);
@@ -220,3 +220,4 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     delay(delay_ms);
   }
 }
+
