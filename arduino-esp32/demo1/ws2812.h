@@ -1,5 +1,5 @@
 /*
- * A driver for the WS2812 RGB LEDs using the RMT peripheral on the ESP32.
+ * A driver for digital RGB LEDs using the RMT peripheral on the ESP32
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *

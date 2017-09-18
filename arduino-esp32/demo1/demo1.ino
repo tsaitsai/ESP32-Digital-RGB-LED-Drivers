@@ -43,7 +43,7 @@
 // Required if debugging is enabled in WS2812 header
 #if DEBUG_WS2812_DRIVER
 int ws2812_debugBufferSz = 1024;
-char * ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
+char * ws2812_debugBuffer = static_cast<char*>(calloc(ws2812_debugBufferSz, sizeof(char)));
 #endif
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
@@ -85,7 +85,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Initializing...");
 
-  if(ws2812_init(STRANDS, STRANDCNT)) {
+  if (ws2812_init(STRANDS, STRANDCNT)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
   }
