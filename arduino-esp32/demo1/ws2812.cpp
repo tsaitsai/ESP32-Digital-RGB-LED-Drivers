@@ -135,14 +135,8 @@ int ws2812_init(strand_t strands [], int numStrands)
 
   RMT.tx_lim_ch[pStrand->rmtChannel].limit = MAX_PULSES;
 
-  switch (pStrand->rmtChannel) {
-    case 0:
-      RMT.int_ena.ch0_tx_thr_event = 1;
-      RMT.int_ena.ch0_tx_end = 1;
-      break;
-    default:
-      return -1;
-  }
+  RMT.int_ena.val |= ((uint32_t)0x00000001 << (24+pStrand->rmtChannel));  // RMT.int_ena.ch<n>_tx_thr_event = 1;
+  RMT.int_ena.val |= ((uint32_t)0x00000001 << (0+pStrand->rmtChannel)*3);  // RMT.int_ena.ch<n>_tx_end = 1;
 
   timingParams ledParams = ledParamsAll[pStrand->ledType];
 
@@ -301,22 +295,26 @@ void copyToRmtBlock_half(strand_t * pStrand)
 
 void ws2812_handleInterrupt(void *arg)
 {
-  portBASE_TYPE taskAwoken = 0;
+  portBASE_TYPE taskAwoken = 42;
   #if DEBUG_WS2812_DRIVER
     snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%shandling interrupt\n", ws2812_debugBuffer);
   #endif
-  uint32_t tx_thr_event, ch0_tx_end;
 
   strand_t * pStrand = &localStrands[0];
   ws2812_stateData * pState = (ws2812_stateData*)pStrand->_stateVars;
-  
-  if (RMT.int_st.ch0_tx_thr_event) {
+
+  #if DEBUG_WS2812_DRIVER
+      snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sRMT.int_st.val = %08x\n", ws2812_debugBuffer, RMT.int_st.val);
+  #endif
+  if (RMT.int_st.val & ((uint32_t)0x00000001 << (24+pStrand->rmtChannel)))
+  {  // RMT.int_st.ch<n>_tx_thr_event
     copyToRmtBlock_half(pStrand);
-    RMT.int_clr.ch0_tx_thr_event = 1;
+    RMT.int_clr.val |= ((uint32_t)0x00000001 << (24+pStrand->rmtChannel));  // RMT.int_clr.ch<n>_tx_thr_event = 1
   }
-  else if (RMT.int_st.ch0_tx_end && pState->sem) {
+  else if (RMT.int_st.val & ((uint32_t)0x00000001 << (0+pStrand->rmtChannel)*3) && pState->sem)
+  {  // RMT.int_st.ch<n>_tx_end && pState->sem
     xSemaphoreGiveFromISR(pState->sem, &taskAwoken);
-    RMT.int_clr.ch0_tx_end = 1;
+    RMT.int_clr.val |= ((uint32_t)0x00000001 << (0+pStrand->rmtChannel)*3);  // RMT.int_clr.ch<n>_tx_end
   }
 
   return;

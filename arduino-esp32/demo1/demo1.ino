@@ -47,11 +47,10 @@ char * ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
 #endif
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-  {.rmtChannel = 0, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
 //  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
 //  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
 //  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-//  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
 };
 
 // Forward declarations
