@@ -47,11 +47,12 @@ char * ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
 #endif
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-//  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-//  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
+  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93},
+  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93},
+  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64},
 };
+int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
 // Forward declarations
 void displayOff(strand_t *);
@@ -76,57 +77,43 @@ void setup()
   pinMode (18, OUTPUT); digitalWrite (18, LOW);
   pinMode (19, OUTPUT); digitalWrite (19, LOW);
 
+  //  gpio_num_t gpioNum = static_cast<gpio_num_t>(pStrand->gpioNum);
+  //  gpio_pad_select_gpio(gpioNum);
+  //  gpio_set_direction(gpioNum, GPIO_MODE_OUTPUT);  //pinMode(gpioNum, OUTPUT);
+  //  gpio_set_level(gpioNum, 0);  //digitalWrite(gpioNum, LOW);
+
   Serial.begin(115200);
   Serial.println("Initializing...");
-  int numStrands = sizeof(STRANDS)/sizeof(STRANDS[0]);
-  if(ws2812_init(STRANDS, numStrands)) {
+
+  if(ws2812_init(STRANDS, STRANDCNT)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
   }
-  strand_t * pStrand = &STRANDS[0];
-  #if DEBUG_WS2812_DRIVER
-    dumpDebugBuffer(-2, ws2812_debugBuffer);
-  #endif
-  pStrand->pixels = (rgbVal *)malloc(sizeof(rgbVal) * pStrand->numPixels);
-  displayOff(pStrand);
-  #if DEBUG_WS2812_DRIVER
-    dumpDebugBuffer(-1, ws2812_debugBuffer);
-  #endif
-  Serial.println("Init complete");
-}
 
-// Test code
-const int TEST_MAX_PASSES = 10;
-int test_passes = 0;
-void test_loop()
-{
-  strand_t * pStrand = &STRANDS[0];
-  for(uint16_t i = 0; i < pStrand->numPixels; i++) {
-    pStrand->pixels[i] = makeRGBVal(1, 1, 1);
+  for (int i = 0; i < STRANDCNT; i++) {
+    strand_t * pStrand = &STRANDS[i];
+    #if DEBUG_WS2812_DRIVER
+      dumpDebugBuffer(-2, ws2812_debugBuffer);
+    #endif
+    displayOff(pStrand);
+    #if DEBUG_WS2812_DRIVER
+      dumpDebugBuffer(-1, ws2812_debugBuffer);
+    #endif
   }
-  pStrand->pixels[0] = makeRGBVal(2, 1, 3);
-  pStrand->pixels[1] = makeRGBVal(5, 4, 6);
-  pStrand->pixels[2] = makeRGBVal(8, 7, 9);
-  ws2812_setColors(pStrand);
-  #if DEBUG_WS2812_DRIVER
-    dumpDebugBuffer(test_passes, ws2812_debugBuffer);
-  #endif
-  delay(1);
-  if (++test_passes >= TEST_MAX_PASSES) {
-    while(1) {}
-  }
+  Serial.println("Init complete");
 }
 
 void loop()
 {
-  //test_loop(); return;
-  strand_t * pStrand = &STRANDS[0];
-  rainbow(pStrand, 0, 5000);
-  scanner(pStrand, 0, 5000);
-  displayOff(pStrand);
-  #if DEBUG_WS2812_DRIVER
-    dumpDebugBuffer(test_passes, ws2812_debugBuffer);
-  #endif
+  for (int i = 0; i < STRANDCNT; i++) {
+    strand_t * pStrand = &STRANDS[i];
+    rainbow(pStrand, 0, 2000);
+    scanner(pStrand, 0, 2000);
+    displayOff(pStrand);
+    #if DEBUG_WS2812_DRIVER
+      dumpDebugBuffer(test_passes, ws2812_debugBuffer);
+    #endif
+  }
 }
 
 void displayOff(strand_t * pStrand)
@@ -219,4 +206,27 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     delay(delay_ms);
   }
 }
+
+void test_loop()
+{
+  int test_max_passes = 30;
+  for (int test_passes = 0; test_passes < test_max_passes; test_passes++) {
+    for (int i = 0; i < STRANDCNT; i++) {
+      strand_t * pStrand = &STRANDS[i];
+      for(uint16_t i = 0; i < pStrand->numPixels; i++) {
+        pStrand->pixels[i] = makeRGBVal(1, 1, 1);
+      }
+      pStrand->pixels[0] = makeRGBVal(2, 1, 3);
+      pStrand->pixels[1] = makeRGBVal(5, 4, 6);
+      pStrand->pixels[2] = makeRGBVal(8, 7, 9);
+      ws2812_setColors(pStrand);
+    }
+    #if DEBUG_WS2812_DRIVER
+      dumpDebugBuffer(test_passes, ws2812_debugBuffer);
+    #endif
+    delay(1);
+  }
+  while(1) {}
+}
+
 
