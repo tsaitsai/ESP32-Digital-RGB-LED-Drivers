@@ -126,7 +126,7 @@ typedef struct {
 } ws2812_stateData;
 
 static strand_t * localStrands;
-static int localStrandsCnt = 0;
+static int localStrandCnt = 0;
 
 static intr_handle_t rmt_intr_handle = NULL;
 
@@ -143,7 +143,10 @@ int ws2812_init(strand_t strands [], int numStrands)
   #endif
 
   localStrands = strands;
-  localStrandsCnt = numStrands;
+  localStrandCnt = numStrands;
+  if (localStrandCnt < 1 || localStrandCnt > 8) {
+    return -1;
+  }
 
   DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_RMT_CLK_EN);
   DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_RMT_RST);
@@ -151,17 +154,20 @@ int ws2812_init(strand_t strands [], int numStrands)
   RMT.apb_conf.fifo_mask = 1;  // Enable memory access, instead of FIFO mode
   RMT.apb_conf.mem_tx_wrap_en = 1;  // Wrap around when hitting end of buffer
 
-  for (int i = 0; i < localStrandsCnt; i++) {
+  for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
-    pStrand->_stateVars = static_cast<ws2812_stateData*>(calloc(1, sizeof(ws2812_stateData)));
+    //pStrand->_stateVars = static_cast<ws2812_stateData*>(calloc(1, sizeof(ws2812_stateData)));
+    pStrand->_stateVars = static_cast<ws2812_stateData*>(malloc(sizeof(ws2812_stateData)));
     ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
-    pStrand->pixels = static_cast<rgbVal*>(calloc(pStrand->numPixels, sizeof(rgbVal)));
+    //pStrand->pixels = static_cast<rgbVal*>(calloc(pStrand->numPixels, sizeof(rgbVal)));
+    pStrand->pixels = static_cast<rgbVal*>(malloc(pStrand->numPixels * sizeof(rgbVal)));
     pState->len = (pStrand->numPixels * 3) * sizeof(uint8_t);
     pState->buf = static_cast<uint8_t*>(malloc(pState->len));
 
-    rmt_set_pin(static_cast<rmt_channel_t>(pStrand->rmtChannel),
-                RMT_MODE_TX,
-                static_cast<gpio_num_t>(pStrand->gpioNum));
+    rmt_set_pin(
+      static_cast<rmt_channel_t>(pStrand->rmtChannel),
+      RMT_MODE_TX,
+      static_cast<gpio_num_t>(pStrand->gpioNum));
   
     RMT.conf_ch[pStrand->rmtChannel].conf0.div_cnt = DIVIDER;
     RMT.conf_ch[pStrand->rmtChannel].conf0.mem_size = 1;
@@ -205,9 +211,6 @@ void ws2812_setColors(strand_t * pStrand)
 {
   ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
 
-  //pState->len = (pStrand->numPixels * 3) * sizeof(uint8_t);
-  //pState->buf = static_cast<uint8_t*>(malloc(pState->len));
-
   for (uint16_t i = 0; i < pStrand->numPixels; i++) {
     // Color order is translated from RGB (e.g., WS2812 = GRB)
     pState->buf[0 + i * 3] = pStrand->pixels[i].g;
@@ -236,8 +239,6 @@ void ws2812_setColors(strand_t * pStrand)
   xSemaphoreTake(pState->sem, portMAX_DELAY);
   vSemaphoreDelete(pState->sem);
   pState->sem = NULL;
-
-  //free(pState->buf);
 
   return;
 }
@@ -325,7 +326,7 @@ void ws2812_handleInterrupt(void *arg)
     snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sRMT.int_st.val = %08x\n", ws2812_debugBuffer, RMT.int_st.val);
   #endif
 
-  for (int i = 0; i < localStrandsCnt; i++) {
+  for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
     ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
 
