@@ -60,10 +60,14 @@ void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
 }
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-  //{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93, .pixels = NULL, ._stateVars = NULL},
-  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93, .pixels = NULL, ._stateVars = NULL},
-  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64, .pixels = NULL, ._stateVars = NULL},
+  //{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
+  // .pixels = NULL, ._stateVars = NULL},
+  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
+   .pixels = NULL, ._stateVars = NULL},
+  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
+   .pixels = NULL, ._stateVars = NULL},
+  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64,
+   .pixels = NULL, ._stateVars = NULL},
 };
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
@@ -515,3 +519,4 @@ void loop()
     #endif
   }
 }
+
