@@ -1,5 +1,5 @@
 /* 
- * A driver for the WS2812 RGB LEDs using the RMT peripheral on the ESP32.
+ * A driver for digital RGB LEDs using the RMT peripheral on the ESP32
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
@@ -60,10 +60,14 @@ extern "C" {
 }
 #endif
 
-#define RMTCHANNEL          0 /* There are 8 possible channels */
-#define DIVIDER             4 /* 8 still seems to work, but timings become marginal */
-#define MAX_PULSES         32 /* A channel has a 64 "pulse" buffer - we use half per pass */
-#define RMT_DURATION_NS  12.5 /* minimum time of a single RMT duration based on clock ns */
+#if DEBUG_WS2812_DRIVER
+extern char * ws2812_debugBuffer;
+extern int ws2812_debugBufferSz;
+#endif
+
+const uint16_t MAX_PULSES = 32;  // A channel has a 64 "pulse" buffer - we use half per pass
+const uint16_t DIVIDER    =  4;  // 8 still seems to work, but timings become marginal
+const double   RMT_DURATION_NS = 12.5;  // Minimum time of a single RMT duration based on clock ns
 
 typedef struct {
   uint32_t T0H;
@@ -73,11 +77,36 @@ typedef struct {
   uint32_t TRS;
 } timingParams;
 
-timingParams ledParams;
-timingParams ledParams_WS2812  = { .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000};
-timingParams ledParams_WS2812B = { .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000};
-timingParams ledParams_SK6812  = { .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000};
-timingParams ledParams_WS2813  = { .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000};
+const timingParams ledParamsAll[] = {  // MUST match order of led_types!
+  /* LED_WS2812 */   { .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
+  /* LED_WS2812B */  { .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000},
+  /* LED_SK6812 */   { .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
+  /* LED_WS2813 */   { .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000},
+};
+
+// LUT for mapping bits in RMT.int_<op>.ch<n>_tx_thr_event
+const uint32_t tx_thr_event_offsets [] = {
+  static_cast<uint32_t>(1) << (24 + 0),
+  static_cast<uint32_t>(1) << (24 + 1),
+  static_cast<uint32_t>(1) << (24 + 2),
+  static_cast<uint32_t>(1) << (24 + 3),
+  static_cast<uint32_t>(1) << (24 + 4),
+  static_cast<uint32_t>(1) << (24 + 5),
+  static_cast<uint32_t>(1) << (24 + 6),
+  static_cast<uint32_t>(1) << (24 + 7),
+};
+
+// LUT for mapping bits in RMT.int_<op>.ch<n>_tx_end
+const uint32_t tx_end_offsets [] = {
+  static_cast<uint32_t>(1) << (0 + 0) * 3,
+  static_cast<uint32_t>(1) << (0 + 1) * 3,
+  static_cast<uint32_t>(1) << (0 + 2) * 3,
+  static_cast<uint32_t>(1) << (0 + 3) * 3,
+  static_cast<uint32_t>(1) << (0 + 4) * 3,
+  static_cast<uint32_t>(1) << (0 + 5) * 3,
+  static_cast<uint32_t>(1) << (0 + 6) * 3,
+  static_cast<uint32_t>(1) << (0 + 7) * 3,
+};
 
 typedef union {
   struct {
@@ -89,70 +118,174 @@ typedef union {
   uint32_t val;
 } rmtPulsePair;
 
-static uint8_t *ws2812_buffer = NULL;
-static uint16_t ws2812_pos, ws2812_len, ws2812_half, ws2812_bufIsDirty;
-static xSemaphoreHandle ws2812_sem = NULL;
+typedef struct {
+  uint8_t * buf;
+  uint16_t pos, len, half, bufIsDirty;
+  xSemaphoreHandle sem;
+  rmtPulsePair pulsePairMap[2];
+} ws2812_stateData;
+
+static strand_t * localStrands;
+static int localStrandCnt = 0;
+
 static intr_handle_t rmt_intr_handle = NULL;
-static rmtPulsePair ws2812_bitval_to_rmt_map[2];
 
-void initRMTChannel(int rmtChannel)
+// Forward declarations
+int ws2812_init(strand_t strands [], int numStrands);
+void ws2812_setColors(strand_t * pStrand);
+void copyToRmtBlock_half(strand_t * pStrand);
+void ws2812_handleInterrupt(void *arg);
+
+int ws2812_init(strand_t strands [], int numStrands)
 {
-  RMT.apb_conf.fifo_mask = 1;  //enable memory access, instead of FIFO mode.
-  RMT.apb_conf.mem_tx_wrap_en = 1; //wrap around when hitting end of buffer
-  RMT.conf_ch[rmtChannel].conf0.div_cnt = DIVIDER;
-  RMT.conf_ch[rmtChannel].conf0.mem_size = 1;
-  RMT.conf_ch[rmtChannel].conf0.carrier_en = 0;
-  RMT.conf_ch[rmtChannel].conf0.carrier_out_lv = 1;
-  RMT.conf_ch[rmtChannel].conf0.mem_pd = 0;
+  #if DEBUG_WS2812_DRIVER
+    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sws2812_init numStrands = %d\n", ws2812_debugBuffer, numStrands);
+  #endif
 
-  RMT.conf_ch[rmtChannel].conf1.rx_en = 0;
-  RMT.conf_ch[rmtChannel].conf1.mem_owner = 0;
-  RMT.conf_ch[rmtChannel].conf1.tx_conti_mode = 0;    //loop back mode.
-  RMT.conf_ch[rmtChannel].conf1.ref_always_on = 1;    // use apb clock: 80M
-  RMT.conf_ch[rmtChannel].conf1.idle_out_en = 1;
-  RMT.conf_ch[rmtChannel].conf1.idle_out_lv = 0;
+  localStrands = strands;
+  localStrandCnt = numStrands;
+  if (localStrandCnt < 1 || localStrandCnt > 8) {
+    return -1;
+  }
+
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_RMT_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_RMT_RST);
+
+  RMT.apb_conf.fifo_mask = 1;  // Enable memory access, instead of FIFO mode
+  RMT.apb_conf.mem_tx_wrap_en = 1;  // Wrap around when hitting end of buffer
+
+  for (int i = 0; i < localStrandCnt; i++) {
+    strand_t * pStrand = &localStrands[i];
+    //pStrand->_stateVars = static_cast<ws2812_stateData*>(calloc(1, sizeof(ws2812_stateData)));
+    pStrand->_stateVars = static_cast<ws2812_stateData*>(malloc(sizeof(ws2812_stateData)));
+    ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
+    //pStrand->pixels = static_cast<rgbVal*>(calloc(pStrand->numPixels, sizeof(rgbVal)));
+    pStrand->pixels = static_cast<rgbVal*>(malloc(pStrand->numPixels * sizeof(rgbVal)));
+    pState->len = (pStrand->numPixels * 3) * sizeof(uint8_t);
+    pState->buf = static_cast<uint8_t*>(malloc(pState->len));
+
+    rmt_set_pin(
+      static_cast<rmt_channel_t>(pStrand->rmtChannel),
+      RMT_MODE_TX,
+      static_cast<gpio_num_t>(pStrand->gpioNum));
+  
+    RMT.conf_ch[pStrand->rmtChannel].conf0.div_cnt = DIVIDER;
+    RMT.conf_ch[pStrand->rmtChannel].conf0.mem_size = 1;
+    RMT.conf_ch[pStrand->rmtChannel].conf0.carrier_en = 0;
+    RMT.conf_ch[pStrand->rmtChannel].conf0.carrier_out_lv = 1;
+    RMT.conf_ch[pStrand->rmtChannel].conf0.mem_pd = 0;
+  
+    RMT.conf_ch[pStrand->rmtChannel].conf1.rx_en = 0;
+    RMT.conf_ch[pStrand->rmtChannel].conf1.mem_owner = 0;
+    RMT.conf_ch[pStrand->rmtChannel].conf1.tx_conti_mode = 0;  //loop back mode
+    RMT.conf_ch[pStrand->rmtChannel].conf1.ref_always_on = 1;  // use apb clock: 80M
+    RMT.conf_ch[pStrand->rmtChannel].conf1.idle_out_en = 1;
+    RMT.conf_ch[pStrand->rmtChannel].conf1.idle_out_lv = 0;
+  
+    RMT.tx_lim_ch[pStrand->rmtChannel].limit = MAX_PULSES;
+  
+    timingParams ledParams = ledParamsAll[pStrand->ledType];
+  
+    // RMT config for transmitting a '0' bit val to this LED strand
+    pState->pulsePairMap[0].level0 = 1;
+    pState->pulsePairMap[0].level1 = 0;
+    pState->pulsePairMap[0].duration0 = ledParams.T0H / (RMT_DURATION_NS * DIVIDER);
+    pState->pulsePairMap[0].duration1 = ledParams.T0L / (RMT_DURATION_NS * DIVIDER);
+    
+    // RMT config for transmitting a '0' bit val to this LED strand
+    pState->pulsePairMap[1].level0 = 1;
+    pState->pulsePairMap[1].level1 = 0;
+    pState->pulsePairMap[1].duration0 = ledParams.T1H / (RMT_DURATION_NS * DIVIDER);
+    pState->pulsePairMap[1].duration1 = ledParams.T1L / (RMT_DURATION_NS * DIVIDER);
+
+    RMT.int_ena.val |= tx_thr_event_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_thr_event = 1;
+    RMT.int_ena.val |= tx_end_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_end = 1;
+  }
+  
+  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, NULL, &rmt_intr_handle);
+
+  return 0;
+}
+
+void ws2812_setColors(strand_t * pStrand)
+{
+  ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
+
+  for (uint16_t i = 0; i < pStrand->numPixels; i++) {
+    // Color order is translated from RGB (e.g., WS2812 = GRB)
+    pState->buf[0 + i * 3] = pStrand->pixels[i].g;
+    pState->buf[1 + i * 3] = pStrand->pixels[i].r;
+    pState->buf[2 + i * 3] = pStrand->pixels[i].b;
+  }
+
+  pState->pos = 0;
+  pState->half = 0;
+
+  copyToRmtBlock_half(pStrand);
+
+  if (pState->pos < pState->len) {
+    // Fill the other half of the buffer block
+    #if DEBUG_WS2812_DRIVER
+      snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s# ", ws2812_debugBuffer);
+    #endif
+    copyToRmtBlock_half(pStrand);
+  }
+
+  pState->sem = xSemaphoreCreateBinary();
+
+  RMT.conf_ch[pStrand->rmtChannel].conf1.mem_rd_rst = 1;
+  RMT.conf_ch[pStrand->rmtChannel].conf1.tx_start = 1;
+
+  xSemaphoreTake(pState->sem, portMAX_DELAY);
+  vSemaphoreDelete(pState->sem);
+  pState->sem = NULL;
 
   return;
 }
 
-void copyToRmtBlock_half()
+void copyToRmtBlock_half(strand_t * pStrand)
 {
   // This fills half an RMT block
   // When wraparound is happening, we want to keep the inactive half of the RMT block filled
+
+  ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
+  timingParams ledParams = ledParamsAll[pStrand->ledType];
+
   uint16_t i, j, offset, len, byteval;
 
-  offset = ws2812_half * MAX_PULSES;
-  ws2812_half = !ws2812_half;
+  offset = pState->half * MAX_PULSES;
+  pState->half = !pState->half;
 
-  len = ws2812_len - ws2812_pos;
+  len = pState->len - pState->pos;
   if (len > (MAX_PULSES / 8))
     len = (MAX_PULSES / 8);
 
   if (!len) {
-    if (!ws2812_bufIsDirty) {
+    if (!pState->bufIsDirty) {
       return;
     }
     // Clear the channel's data block and return
     for (i = 0; i < MAX_PULSES; i++) {
-      RMTMEM.chan[RMTCHANNEL].data32[i + offset].val = 0;
+      RMTMEM.chan[pStrand->rmtChannel].data32[i + offset].val = 0;
     }
-    ws2812_bufIsDirty = 0;
+    pState->bufIsDirty = 0;
     return;
   }
-  ws2812_bufIsDirty = 1;
+  pState->bufIsDirty = 1;
 
   for (i = 0; i < len; i++) {
-    byteval = ws2812_buffer[i + ws2812_pos];
+    byteval = pState->buf[i + pState->pos];
 
     #if DEBUG_WS2812_DRIVER
       snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s%d(", ws2812_debugBuffer, byteval);
     #endif
 
-    // Shift bits out, MSB first, setting RMTMEM.chan[n].data32[x] to the rmtPulsePair value corresponding to the buffered bit value
+    // Shift bits out, MSB first, setting RMTMEM.chan[n].data32[x] to
+    // the rmtPulsePair value corresponding to the buffered bit value
     for (j = 0; j < 8; j++, byteval <<= 1) {
       int bitval = (byteval >> 7) & 0x01;
       int data32_idx = i * 8 + offset + j;
-      RMTMEM.chan[RMTCHANNEL].data32[data32_idx].val = ws2812_bitval_to_rmt_map[bitval].val;
+      RMTMEM.chan[pStrand->rmtChannel].data32[data32_idx].val = pState->pulsePairMap[bitval].val;
       #if DEBUG_WS2812_DRIVER
         snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s%d", ws2812_debugBuffer, bitval);
       #endif
@@ -162,8 +295,8 @@ void copyToRmtBlock_half()
     #endif
 
     // Handle the reset bit by stretching duration1 for the final bit in the stream
-    if (i + ws2812_pos == ws2812_len - 1) {
-      RMTMEM.chan[RMTCHANNEL].data32[i * 8 + offset + 7].duration1 =
+    if (i + pState->pos == pState->len - 1) {
+      RMTMEM.chan[pStrand->rmtChannel].data32[i * 8 + offset + 7].duration1 =
         ledParams.TRS / (RMT_DURATION_NS * DIVIDER);
       #if DEBUG_WS2812_DRIVER
         snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sRESET ", ws2812_debugBuffer);
@@ -173,125 +306,41 @@ void copyToRmtBlock_half()
 
   // Clear the remainder of the channel's data not set above
   for (i *= 8; i < MAX_PULSES; i++) {
-    RMTMEM.chan[RMTCHANNEL].data32[i + offset].val = 0;
+    RMTMEM.chan[pStrand->rmtChannel].data32[i + offset].val = 0;
   }
   
-  ws2812_pos += len;
+  pState->pos += len;
 
-#if DEBUG_WS2812_DRIVER
-  snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s ", ws2812_debugBuffer);
-#endif
+  #if DEBUG_WS2812_DRIVER
+    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s ", ws2812_debugBuffer);
+  #endif
 
   return;
 }
-
 
 void ws2812_handleInterrupt(void *arg)
 {
-  portBASE_TYPE taskAwoken = 0;
+  portBASE_TYPE taskAwoken = 42;  // TODO: does this value actually matter?
 
-  if (RMT.int_st.ch0_tx_thr_event) {
-    copyToRmtBlock_half();
-    RMT.int_clr.ch0_tx_thr_event = 1;
-  }
-  else if (RMT.int_st.ch0_tx_end && ws2812_sem) {
-    xSemaphoreGiveFromISR(ws2812_sem, &taskAwoken);
-    RMT.int_clr.ch0_tx_end = 1;
-  }
-
-  return;
-}
-
-int ws2812_init(int gpioNum, int ledType)
-{
   #if DEBUG_WS2812_DRIVER
-    ws2812_debugBuffer = (char*)calloc(ws2812_debugBufferSz, sizeof(char));
+    snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%sRMT.int_st.val = %08x\n", ws2812_debugBuffer, RMT.int_st.val);
   #endif
 
-  switch (ledType) {
-    case LED_WS2812:
-      ledParams = ledParams_WS2812;
-      break;
-    case LED_WS2812B:
-      ledParams = ledParams_WS2812B;
-      break;
-    case LED_SK6812:
-      ledParams = ledParams_SK6812;
-      break;
-    case LED_WS2813:
-      ledParams = ledParams_WS2813;
-      break;
-    default:
-      return -1;
+  for (int i = 0; i < localStrandCnt; i++) {
+    strand_t * pStrand = &localStrands[i];
+    ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
+
+    if (RMT.int_st.val & tx_thr_event_offsets[pStrand->rmtChannel])
+    {  // tests RMT.int_st.ch<n>_tx_thr_event
+      copyToRmtBlock_half(pStrand);
+      RMT.int_clr.val |= tx_thr_event_offsets[pStrand->rmtChannel];  // set RMT.int_clr.ch<n>_tx_thr_event
+    }
+    else if (RMT.int_st.val & tx_end_offsets[pStrand->rmtChannel] && pState->sem)
+    {  // tests RMT.int_st.ch<n>_tx_end and semaphore
+      xSemaphoreGiveFromISR(pState->sem, &taskAwoken);
+      RMT.int_clr.val |= tx_end_offsets[pStrand->rmtChannel];  // set RMT.int_clr.ch<n>_tx_end 
+    }
   }
-
-  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_RMT_CLK_EN);
-  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_RMT_RST);
-
-  rmt_set_pin(static_cast<rmt_channel_t>(RMTCHANNEL),
-              RMT_MODE_TX,
-              static_cast<gpio_num_t>(gpioNum));
-
-  initRMTChannel(RMTCHANNEL);
-
-  RMT.tx_lim_ch[RMTCHANNEL].limit = MAX_PULSES;
-  RMT.int_ena.ch0_tx_thr_event = 1;
-  RMT.int_ena.ch0_tx_end = 1;
-
-  // RMT config for WS2812 bit val 0
-  ws2812_bitval_to_rmt_map[0].level0 = 1;
-  ws2812_bitval_to_rmt_map[0].level1 = 0;
-  ws2812_bitval_to_rmt_map[0].duration0 = ledParams.T0H / (RMT_DURATION_NS * DIVIDER);
-  ws2812_bitval_to_rmt_map[0].duration1 = ledParams.T0L / (RMT_DURATION_NS * DIVIDER);
-  
-  // RMT config for WS2812 bit val 1
-  ws2812_bitval_to_rmt_map[1].level0 = 1;
-  ws2812_bitval_to_rmt_map[1].level1 = 0;
-  ws2812_bitval_to_rmt_map[1].duration0 = ledParams.T1H / (RMT_DURATION_NS * DIVIDER);
-  ws2812_bitval_to_rmt_map[1].duration1 = ledParams.T1L / (RMT_DURATION_NS * DIVIDER);
-
-  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, NULL, &rmt_intr_handle);
-
-  return 0;
-}
-
-void ws2812_setColors(uint16_t length, rgbVal *array)
-{
-  uint16_t i;
-
-  ws2812_len = (length * 3) * sizeof(uint8_t);
-  ws2812_buffer = (uint8_t *) malloc(ws2812_len);
-
-  for (i = 0; i < length; i++) {
-    // Where color order is translated from RGB (e.g., WS2812 = GRB)
-    ws2812_buffer[0 + i * 3] = array[i].g;
-    ws2812_buffer[1 + i * 3] = array[i].r;
-    ws2812_buffer[2 + i * 3] = array[i].b;
-  }
-
-  ws2812_pos = 0;
-  ws2812_half = 0;
-
-  copyToRmtBlock_half();
-
-  if (ws2812_pos < ws2812_len) {
-    // Fill the other half of the buffer block
-    #if DEBUG_WS2812_DRIVER
-      snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s# ", ws2812_debugBuffer);
-    #endif
-    copyToRmtBlock_half();
-  }
-
-  ws2812_sem = xSemaphoreCreateBinary();
-
-  RMT.conf_ch[RMTCHANNEL].conf1.mem_rd_rst = 1;
-  RMT.conf_ch[RMTCHANNEL].conf1.tx_start = 1;
-
-  xSemaphoreTake(ws2812_sem, portMAX_DELAY);
-  vSemaphoreDelete(ws2812_sem);
-  ws2812_sem = NULL;
-
-  free(ws2812_buffer);
 
   return;
 }

@@ -344,4 +344,3 @@ void ws2812_handleInterrupt(void *arg)
 
   return;
 }
-

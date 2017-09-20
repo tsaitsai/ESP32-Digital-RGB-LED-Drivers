@@ -47,6 +47,16 @@
   #include <freertos/task.h>
   #include <soc/rmt_struct.h>
 
+  #define HIGH 1
+  #define LOW 0
+  #define OUTPUT GPIO_MODE_OUTPUT
+  #define INPUT GPIO_MODE_INPUT
+
+  #define DEC 10
+  #define HEX 16
+  #define OCT 8
+  #define BIN 2
+
   uint32_t IRAM_ATTR millis()
   {
     return xTaskGetTickCount() * portTICK_PERIOD_MS;
@@ -68,6 +78,25 @@
       {
         ets_printf("%s", arg);
       }
+      inline void print(const int arg, int argType)
+      {
+        switch (argType) {
+          case DEC:
+            ets_printf("%d", arg);
+            break;
+          case HEX:
+            ets_printf("%x", arg);
+            break;
+          case OCT:
+            ets_printf("%o", arg);
+            break;
+          case BIN:
+            ets_printf("%x", arg);  // TODO: Not implemented yet
+            break;
+          default:
+            ets_printf("%d", arg);
+        }
+      }
       inline void print(const int arg)
       {
         ets_printf("%d", arg);
@@ -75,6 +104,10 @@
       inline void println(const char * arg)
       {
         ets_printf("%s\n", arg);
+      }
+      inline void println()
+      {
+        ets_printf("\n");
       }
   } Serial;
 

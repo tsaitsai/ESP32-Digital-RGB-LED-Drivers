@@ -46,11 +46,24 @@
   char * ws2812_debugBuffer = static_cast<char*>(calloc(ws2812_debugBufferSz, sizeof(char)));
 #endif
 
+void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
+  #if defined(ARDUINO) && ARDUINO >= 100
+    pinMode (gpioNum, gpioMode);
+    digitalWrite (gpioNum, gpioVal);
+  #elif defined(ESP_PLATFORM)
+    gpio_num_t gpioNumNative = static_cast<gpio_num_t>(gpioNum);
+    gpio_mode_t gpioModeNative = static_cast<gpio_mode_t>(gpioMode);
+    gpio_pad_select_gpio(gpioNumNative);
+    gpio_set_direction(gpioNumNative, gpioModeNative);
+    gpio_set_level(gpioNumNative, gpioVal);
+  #endif
+}
+
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
   //{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256},
-  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93},
-  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93},
-  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64},
+  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93, .pixels = NULL, ._stateVars = NULL},
+  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93, .pixels = NULL, ._stateVars = NULL},
+  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64, .pixels = NULL, ._stateVars = NULL},
 };
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
@@ -81,8 +94,10 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
 {
   Serial.println("DEMO: scanner_for_two()");
   bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
-  int currIdx1, currIdx2 = 0;
-  int prevIdx1, prevIdx2 = 0;
+  int currIdx1 = 0;
+  int currIdx2 = 0;
+  int prevIdx1 = 0;
+  int prevIdx2 = 0;
   unsigned long start_ms = millis();
   rgbVal zeroColor = makeRGBVal(0, 0, 0);
   while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
@@ -445,17 +460,14 @@ void test_loop()
   while(1) {}
 }
 
+
 void setup()
 {
-  // TODO this is to avoid crosstalk during testing
-  pinMode (16, OUTPUT); digitalWrite (16, LOW);
-  pinMode (17, OUTPUT); digitalWrite (17, LOW);
-  pinMode (18, OUTPUT); digitalWrite (18, LOW);
-  pinMode (19, OUTPUT); digitalWrite (19, LOW);
-  //  gpio_num_t gpioNum = static_cast<gpio_num_t>(pStrand->gpioNum);
-  //  gpio_pad_select_gpio(gpioNum);
-  //  gpio_set_direction(gpioNum, GPIO_MODE_OUTPUT);  //pinMode(gpioNum, OUTPUT);
-  //  gpio_set_level(gpioNum, 0);  //digitalWrite(gpioNum, LOW);
+  // TODO: this is to avoid crosstalk during testing
+  gpioSetup(16, OUTPUT, LOW);
+  gpioSetup(17, OUTPUT, LOW);
+  gpioSetup(18, OUTPUT, LOW);
+  gpioSetup(19, OUTPUT, LOW);
   Serial.begin(115200);
   Serial.println("Initializing...");
   if (ws2812_init(STRANDS, STRANDCNT)) {
@@ -503,5 +515,4 @@ void loop()
     #endif
   }
 }
-
 
