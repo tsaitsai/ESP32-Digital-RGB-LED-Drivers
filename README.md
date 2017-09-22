@@ -20,7 +20,7 @@ There are working demos for Espressif's IoT Development Framework (esp-idf) and 
 
 There are ESP-IDF SDK settings that need to be changed to equal the Arduino-ESP32 defaults. The Tick Rate and CPU Frequency need to be adjusted, otherwise the ESP-IDF build will run significantly more slowly.
 
-Please see the `sdkconfig.defaults` file for details. This file is parsed for initial settings ONLY if `sdkconfig` doesn't exist.
+Please see the `sdkconfig.defaults` file for details. If you run `make menuconfig` or `make sdkconfig` this file will be parsed for initial settings ONLY if `sdkconfig` doesn't exist. However, this file will be processed every time you run `make defconfig`.
 
 <hr>
 

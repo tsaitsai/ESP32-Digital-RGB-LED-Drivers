@@ -1,6 +1,8 @@
 #-----------------------------------------------------------------------------
-# Default overrides used when running `make menuconfig` for the first time
-# (this file has no effect if `sdkconfig` already exists)
+# Default overrides used when running `make menuconfig` or `make sdkconfig`
+# for the first time (this has no effect if `sdkconfig` already exists)
+#
+# If you run `make defconfig` settings here WILL change an existing `sdkconfig`
 #
 # Example inits are commented out
 #-----------------------------------------------------------------------------
@@ -8,7 +10,7 @@
 #-----------------------------------------------------------------------------
 # Menu: Serial flasher config --> Default serial port
 # CONFIG_ESPTOOLPY_PORT="/dev/ttyUSB0"
-CONFIG_ESPTOOLPY_PORT="COM16"
+CONFIG_ESPTOOLPY_PORT="COM17"
 
 #-----------------------------------------------------------------------------
 # Menu: Component config --> ESP32-specific --> CPU frequency
