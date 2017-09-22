@@ -35,7 +35,8 @@ As usual, the serial port will need to be specified as well:
 
 ### TODO
 
-  - Need RGBW device and datasheets to test preliminary RGBW handling!
+  - IN PROGRESS: Need RGBW device and datasheets to test preliminary RGBW handling!
+  - Small main.c demo - is it even possible?
   - Arduino-ESP32 and classes - very weird if not static or instantiated with `new`??
   - Add more interleaved demos, and more demos in general
   - Mirror changes to the ESP-IDF side
