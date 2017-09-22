@@ -18,18 +18,9 @@ There are working demos for Espressif's IoT Development Framework (esp-idf) and 
 
 ### ESP-IDF build notes - Important!
 
-There are ESP-IDF SDK settings that need to be changed to equal the Arduino-ESP32 defaults (otherwise, the ESP-IDF build will run significantly more slowly). You can run `make menuconfig` to change them:
+There are ESP-IDF SDK settings that need to be changed to equal the Arduino-ESP32 defaults. The Tick Rate and CPU Frequency need to be adjusted, otherwise the ESP-IDF build will run significantly more slowly.
 
-    Component config --> FreeRTOS --> Tick rate (Hz) --> enter '1000' (no quotes)
-    Updates sdk variable: CONFIG_FREERTOS_HZ=1000
-
-    Component config --> ESP32-specific --> CPU frequency --> select '240 MHz'
-    Updates sdk variable: CONFIG_ESP32_DEFAULT_CPU_FREQ_240
-
-As usual, the serial port will need to be specified as well:
-
-    Serial flasher config --> Default serial port --> enter port (e.g., '/dev/ttyUSB0', 'COM17', etc.)
-    Updates sdk variable: CONFIG_ESPTOOLPY_PORT="/dev/ttyUSB0"
+Please see the `sdkconfig.defaults` file for details. This file is parsed for initial settings ONLY if `sdkconfig` doesn't exist.
 
 <hr>
 
