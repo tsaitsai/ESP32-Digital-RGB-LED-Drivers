@@ -36,10 +36,10 @@
 
 typedef union {
   struct __attribute__ ((packed)) {
-    uint8_t r, g, b;
+    uint8_t r, g, b, w;
   };
   uint32_t num;
-} rgbVal;
+} pixelColor_t;
 
 typedef struct {
   int rmtChannel;
@@ -47,22 +47,51 @@ typedef struct {
   int ledType;
   int brightLimit;
   int numPixels;
-  rgbVal * pixels;
+  pixelColor_t * pixels;
   void * _stateVars;
 } strand_t;
 
-enum led_types {LED_WS2812, LED_WS2812B, LED_SK6812, LED_WS2813};
+enum led_types {LED_WS2812, LED_WS2812B, LED_WS2813, LED_SK6812, LED_SK6812W};
 
-extern int  ws2812_init(strand_t strands [], int numStrands);
+typedef struct {
+  int ledType;
+  int bytesPerPixel;
+  uint32_t T0H;
+  uint32_t T1H;
+  uint32_t T0L;
+  uint32_t T1L;
+  uint32_t TRS;
+} ledParams_t;
 
-extern void ws2812_setColors(strand_t * strand);
+const ledParams_t ledParamsAll[] = {  // MUST match order of led_types!
+  { .ledType = LED_WS2812,  .bytesPerPixel = 3, .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
+  { .ledType = LED_WS2812B, .bytesPerPixel = 3, .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000},
+  { .ledType = LED_WS2813,  .bytesPerPixel = 3, .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000},
+  { .ledType = LED_SK6812,  .bytesPerPixel = 3, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
+  { .ledType = LED_SK6812W, .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
+};
 
-inline rgbVal makeRGBVal(uint8_t r, uint8_t g, uint8_t b)
+extern int ws2812_init(strand_t strands [], int numStrands);
+
+extern int ws2812_setColors(strand_t * strand);
+
+inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b)
 {
-  rgbVal v;
+  pixelColor_t v;
   v.r = r;
   v.g = g;
   v.b = b;
+  v.w = 0;
+  return v;
+}
+
+inline pixelColor_t pixelFromRGBW(uint8_t r, uint8_t g, uint8_t b, uint8_t w)
+{
+  pixelColor_t v;
+  v.r = r;
+  v.g = g;
+  v.b = b;
+  v.w = w;
   return v;
 }
 

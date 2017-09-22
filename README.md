@@ -18,7 +18,7 @@ There are working demos for Espressif's IoT Development Framework (esp-idf) and 
 
 ### ESP-IDF build notes - Important!
 
-There are IDF SDK settings that need to be changed to equal the Arduino-ESP32 defaults (otherwise, the ESP-IDF build will run significantly more slowly). You can run `make menuconfig` to change them:
+There are ESP-IDF SDK settings that need to be changed to equal the Arduino-ESP32 defaults (otherwise, the ESP-IDF build will run significantly more slowly). You can run `make menuconfig` to change them:
 
     Component config --> FreeRTOS --> Tick rate (Hz) --> enter '1000' (no quotes)
     Updates sdk variable: CONFIG_FREERTOS_HZ=1000
@@ -35,11 +35,10 @@ As usual, the serial port will need to be specified as well:
 
 ### TODO
 
+  - Need RGBW device and datasheets to test preliminary RGBW handling!
   - Arduino-ESP32 and classes - very weird if not static or instantiated with `new`??
-  - Add strand num to each strand for introspection
-  - Print strand num from pStrand for each demo
-  - Add more interleaved demos
+  - Add more interleaved demos, and more demos in general
   - Mirror changes to the ESP-IDF side
-  - More demos!
+  - Fix TODOs in code
   - Make Arduino side a true Arduino library?
   - APA102/DotStar support?
