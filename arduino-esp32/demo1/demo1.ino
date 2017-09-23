@@ -65,13 +65,15 @@ void dumpBytes(void * pts, int numBytes) {
 }
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
-//   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
    .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
    .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64,
+   .pixels = nullptr, ._stateVars = nullptr},
+//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 300,
+//   .pixels = nullptr, ._stateVars = nullptr},
+  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W, .brightLimit = 32, .numPixels = 300,
    .pixels = nullptr, ._stateVars = nullptr},
 };
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
@@ -93,8 +95,9 @@ void dumpDebugBuffer(int id, char * debugBuffer)
 
 void displayOff(strand_t * pStrand)
 {
+  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
   for (int i = 0; i < pStrand->numPixels; i++) {
-    pStrand->pixels[i] = pixelFromRGB(0, 0, 0);
+    pStrand->pixels[i] = offColor;
   }
   ws2812_setColors(pStrand);
 }
@@ -112,12 +115,12 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
   int prevIdx1 = 0;
   int prevIdx2 = 0;
   unsigned long start_ms = millis();
-  pixelColor_t zeroColor = pixelFromRGB(0, 0, 0);
+  pixelColor_t offColor = pixelFromRGB(0, 0, 0);
   while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
     pixelColor_t newColor1 = pixelFromRGB(0, 0, pStrand1->brightLimit);
     pixelColor_t newColor2 = pixelFromRGB(pStrand2->brightLimit, 0 ,0);
-    pStrand1->pixels[prevIdx1] = zeroColor;
-    pStrand2->pixels[prevIdx2] = zeroColor;
+    pStrand1->pixels[prevIdx1] = offColor;
+    pStrand2->pixels[prevIdx2] = offColor;
     pStrand1->pixels[currIdx1] = newColor1;
     pStrand2->pixels[currIdx2] = newColor2;
     ws2812_setColors(pStrand1);
@@ -142,8 +145,9 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
   bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
   while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
-    pStrand->pixels[prevIdx] = pixelFromRGB(0, 0, 0);
-    pStrand->pixels[currIdx] = pixelFromRGB(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);;
+    pStrand->pixels[prevIdx] = pixelFromRGBW(0, 0, 0, 0);
+    pStrand->pixels[currIdx] = pixelFromRGBW(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);
+    Serial.println(currIdx);
     ws2812_setColors(pStrand);
     prevIdx = currIdx;
     currIdx++;
@@ -152,6 +156,8 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     }
     delay(delay_ms);
   }
+  Serial.print("DEMO: scanner - outta time!");
+  displayOff(pStrand);
 }
 
 class Rainbower {
@@ -581,6 +587,9 @@ void setup()
 
 void loop()
 {
+//  scanner(&STRANDS[3], 0, 50000);
+//  return;
+
   rainbow(&STRANDS[2], 0, 4000); // all red if regular var not static, erratic if dynamic via `new`
   displayOff(&STRANDS[2]);
   delay(500);
