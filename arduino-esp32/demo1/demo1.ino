@@ -605,6 +605,8 @@ void loop()
   // scanner(&STRANDS[3], 0, 50000);
   // return;
 
+  rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 5000);
+
   scanner(&STRANDS[2], 0, 4000);
   rainbow(&STRANDS[2], 0, 4000); // all red if regular var not static, erratic if dynamic via `new`
   displayOff(&STRANDS[2]);

@@ -28,10 +28,11 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
 
 ### TODO
 
-  - Small main.c demo - is it even possible?
   - Arduino-ESP32 and classes - very weird if not static or instantiated with `new`??
-  - Add more interleaved demos, and more demos in general
-  - Mirror changes to the ESP-IDF side
+    - Demo1 fails differently on `rainbow_for_three()`, but they both tend to partially fail - why?
+  - Add a stripped-down demo2 in C
+  - Mirror changes to the ESP-IDF side (simple sync)
   - Fix TODOs in code
-  - Make Arduino side a true Arduino library?
+  - Add more interleaved demos, and more demos in general
+  - Make Arduino side a true Arduino library? May not be practical.
   - APA102/DotStar support?
