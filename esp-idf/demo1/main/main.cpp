@@ -59,15 +59,21 @@ void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
   #endif
 }
 
+void dumpBytes(void * pts, int numBytes) {
+  // TODO: write this to sample pixel buffer
+}
+
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-  //{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
-  // .pixels = NULL, ._stateVars = NULL},
+//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
+//   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
-   .pixels = NULL, ._stateVars = NULL},
+   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
-   .pixels = NULL, ._stateVars = NULL},
+   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64,
-   .pixels = NULL, ._stateVars = NULL},
+   .pixels = nullptr, ._stateVars = nullptr},
+  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W, .brightLimit = 32, .numPixels = 300,
+   .pixels = nullptr, ._stateVars = nullptr},
 };
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
@@ -88,27 +94,32 @@ void dumpDebugBuffer(int id, char * debugBuffer)
 
 void displayOff(strand_t * pStrand)
 {
+  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
   for (int i = 0; i < pStrand->numPixels; i++) {
-    pStrand->pixels[i] = makeRGBVal(0, 0, 0);
+    pStrand->pixels[i] = offColor;
   }
   ws2812_setColors(pStrand);
 }
 
 void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: scanner_for_two()");
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  Serial.print("DEMO: scanner_for_two(");
+  Serial.print(pStrand1->rmtChannel);
+  Serial.print(", ");
+  Serial.print(pStrand2->rmtChannel);
+  Serial.println(")");
+  bool runForever = (timeout_ms == 0 ? true : false);
   int currIdx1 = 0;
   int currIdx2 = 0;
   int prevIdx1 = 0;
   int prevIdx2 = 0;
   unsigned long start_ms = millis();
-  rgbVal zeroColor = makeRGBVal(0, 0, 0);
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
-    rgbVal newColor1 = makeRGBVal(0, 0, pStrand1->brightLimit);
-    rgbVal newColor2 = makeRGBVal(pStrand2->brightLimit, 0 ,0);
-    pStrand1->pixels[prevIdx1] = zeroColor;
-    pStrand2->pixels[prevIdx2] = zeroColor;
+  pixelColor_t offColor = pixelFromRGB(0, 0, 0);
+  while (runForever || (millis() - start_ms < timeout_ms)) {
+    pixelColor_t newColor1 = pixelFromRGB(0, 0, pStrand1->brightLimit);
+    pixelColor_t newColor2 = pixelFromRGB(pStrand2->brightLimit, 0 ,0);
+    pStrand1->pixels[prevIdx1] = offColor;
+    pStrand2->pixels[prevIdx2] = offColor;
     pStrand1->pixels[currIdx1] = newColor1;
     pStrand2->pixels[currIdx2] = newColor2;
     ws2812_setColors(pStrand1);
@@ -125,14 +136,17 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
 
 void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: scanner()");
+  Serial.print("DEMO: scanner(");
+  Serial.print(pStrand->rmtChannel);
+  Serial.println(")");
   int currIdx = 0;
   int prevIdx = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
-    pStrand->pixels[prevIdx] = makeRGBVal(0, 0, 0);
-    pStrand->pixels[currIdx] = makeRGBVal(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);;
+  while (runForever || !(millis() - start_ms >= timeout_ms && currIdx == 0)) {
+    pStrand->pixels[prevIdx] = pixelFromRGBW(0, 0, 0, 0);
+    pStrand->pixels[currIdx] = pixelFromRGBW(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);
+    // Serial.println(currIdx);
     ws2812_setColors(pStrand);
     prevIdx = currIdx;
     currIdx++;
@@ -141,6 +155,7 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     }
     delay(delay_ms);
   }
+  displayOff(pStrand);
 }
 
 class Rainbower {
@@ -148,8 +163,8 @@ class Rainbower {
     uint8_t color_div = 4;
     uint8_t anim_step = 1;
     uint8_t anim_max;
-    rgbVal color1;
-    rgbVal color2;
+    pixelColor_t color1;
+    pixelColor_t color2;
     uint8_t stepVal1, stepVal2;
   public:
     Rainbower(strand_t *);
@@ -158,11 +173,13 @@ class Rainbower {
 
 Rainbower::Rainbower(strand_t * pStrandIn)
 {
-  Serial.println("init: Rainbower::Rainbower()");
+  Serial.print("init: Rainbower::Rainbower(");
+  Serial.print(pStrandIn->rmtChannel);
+  Serial.println(")");
   pStrand = pStrandIn;
   anim_max = pStrand->brightLimit - anim_step;
-  color1 = makeRGBVal(anim_max, 0, 0);
-  color2 = makeRGBVal(anim_max, 0, 0);
+  color1 = pixelFromRGB(anim_max, 0, 0);
+  color2 = pixelFromRGB(anim_max, 0, 0);
 }
 
 void Rainbower::drawNext()
@@ -170,7 +187,7 @@ void Rainbower::drawNext()
   color1 = color2;
   stepVal1 = stepVal2;
   for (uint16_t i = 0; i < pStrand->numPixels; i++) {
-    pStrand->pixels[i] = makeRGBVal(color1.r/color_div, color1.g/color_div, color1.b/color_div);
+    pStrand->pixels[i] = pixelFromRGB(color1.r/color_div, color1.g/color_div, color1.b/color_div);
     if (i == 1) {
       color2 = color1;
       stepVal2 = stepVal1;
@@ -224,15 +241,21 @@ void Rainbower::drawNext()
 
 void rainbow_for_three(strand_t * pStrand1, strand_t * pStrand2, strand_t * pStrand3, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: rainbow_for_three()");
+  Serial.print("DEMO: rainbow_for_three(");
+  Serial.print(pStrand1->rmtChannel);
+  Serial.print(", ");
+  Serial.print(pStrand2->rmtChannel);
+  Serial.print(", ");
+  Serial.print(pStrand3->rmtChannel);
+  Serial.println(")");
   unsigned long start_ms = millis();
-  static Rainbower rbow1(pStrand1);  // fails weirdly if not static - why??
-  static Rainbower rbow2(pStrand2);  // fails weirdly if not static - why??
-  static Rainbower rbow3(pStrand3);  // fails weirdly if not static - why??
+  Rainbower rbow1(pStrand1); Rainbower * pRbow1 = &rbow1;  // fails weirdly if not static - why??
+  Rainbower rbow2(pStrand2); Rainbower * pRbow2 = &rbow2;  // fails weirdly if not static - why??
+  Rainbower rbow3(pStrand3); Rainbower * pRbow3 = &rbow3;  // fails weirdly if not static - why??
   while (timeout_ms == 0 || (millis() - start_ms < timeout_ms)) {
-    rbow1.drawNext();
-    rbow2.drawNext();
-    rbow3.drawNext();
+    pRbow1->drawNext();
+    pRbow2->drawNext();
+    pRbow3->drawNext();
     delay(delay_ms);
   }
   displayOff(pStrand1);
@@ -242,60 +265,69 @@ void rainbow_for_three(strand_t * pStrand1, strand_t * pStrand2, strand_t * pStr
 
 void rainbow_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: rainbow_for_two()");
+  Serial.print("DEMO: rainbow_for_two(");
+  Serial.print(pStrand1->rmtChannel);
+  Serial.print(", ");
+  Serial.print(pStrand2->rmtChannel);
+  Serial.println(")");
   unsigned long start_ms = millis();
-//  Rainbower * rbow1 = new Rainbower(pStrand1);
-//  Rainbower * rbow2 = new Rainbower(pStrand2);
-  static Rainbower rbow1(pStrand1);  // fails weirdly if not static - why??
-  static Rainbower rbow2(pStrand2);  // fails weirdly if not static - why??
+  // Rainbower * pRbow1 = new Rainbower(pStrand1);
+  // Rainbower * pRbow2 = new Rainbower(pStrand2);
+  static Rainbower rbow1(pStrand1); Rainbower * pRbow1 = &rbow1;  // fails weirdly if not static - why??
+  static Rainbower rbow2(pStrand2); Rainbower * pRbow2 = &rbow2;  // fails weirdly if not static - why??
   while (timeout_ms == 0 || (millis() - start_ms < timeout_ms)) {
-    //rbow1->drawNext();
-    rbow1.drawNext();
-    //rbow2->drawNext();
-    rbow2.drawNext();
+    pRbow1->drawNext();
+    pRbow2->drawNext();
     delay(delay_ms);
   }
-  //delete rbow1;
-  //delete rbow2;
+  //delete pRbow1;
+  //delete pRbow2;
   displayOff(pStrand1);
   displayOff(pStrand2);
 }
 
 void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: rainbow()");
+  Serial.print("DEMO: rainbow(");
+  Serial.print(pStrand->rmtChannel);
+  Serial.println(")");
   unsigned long start_ms = millis();
-  Rainbower * rbow2 = new Rainbower(pStrand);
-  Rainbower * rbow = new Rainbower(pStrand);
+  ////Rainbower * pRbow2 = new Rainbower(pStrand);
+  //Rainbower * pRbow = new Rainbower(pStrand);
+  Rainbower rbow(pStrand); Rainbower * pRbow = &rbow;   // fails weirdly if not static - why??
   while (timeout_ms == 0 || (millis() - start_ms < timeout_ms)) {
-    rbow->drawNext();
+    pRbow->drawNext();
     delay(delay_ms);
   }
-  delete rbow;
-  delete rbow2;
+  //delete pRbow;
+  ////delete pRbow2;
   displayOff(pStrand);
 }
 
 void rainbow_for_two_OLD(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: rainbow_for_two_OLD()");
+  Serial.print("DEMO: rainbow_for_two_OLD(");
+  Serial.print(pStrand1->rmtChannel);
+  Serial.print(", ");
+  Serial.print(pStrand2->rmtChannel);
+  Serial.println(")");
   const uint8_t color_div = 4;
   const uint8_t anim_step = 1;
   const uint8_t anim_max_1 = pStrand1->brightLimit - anim_step;
   const uint8_t anim_max_2 = pStrand2->brightLimit - anim_step;
-  rgbVal color1_1, color2_1 = makeRGBVal(anim_max_1, 0, 0);
-  rgbVal color1_2, color2_2 = makeRGBVal(0, 0, anim_max_2);
+  pixelColor_t color1_1, color2_1 = pixelFromRGB(anim_max_1, 0, 0);
+  pixelColor_t color1_2, color2_2 = pixelFromRGB(0, 0, anim_max_2);
   uint8_t stepVal1_1 = 0;
   uint8_t stepVal2_1 = 0;
   uint8_t stepVal1_2 = 0;
   uint8_t stepVal2_2 = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || (millis() - start_ms < timeout_ms)) {
     color1_1 = color2_1;
     stepVal1_1 = stepVal2_1;
     for (uint16_t i = 0; i < pStrand1->numPixels; i++) {
-      pStrand1->pixels[i] = makeRGBVal(color1_1.r/color_div, color1_1.g/color_div, color1_1.b/color_div);
+      pStrand1->pixels[i] = pixelFromRGB(color1_1.r/color_div, color1_1.g/color_div, color1_1.b/color_div);
       if (i == 1) {
         color2_1 = color1_1;
         stepVal2_1 = stepVal1_1;
@@ -336,7 +368,7 @@ void rainbow_for_two_OLD(strand_t * pStrand1, strand_t * pStrand2, unsigned long
     color1_2 = color2_2;
     stepVal1_2 = stepVal2_2;
     for (uint16_t i = 0; i < pStrand2->numPixels; i++) {
-      pStrand2->pixels[i] = makeRGBVal(color1_2.r/color_div, color1_2.g/color_div, color1_2.b/color_div);
+      pStrand2->pixels[i] = pixelFromRGB(color1_2.r/color_div, color1_2.g/color_div, color1_2.b/color_div);
       if (i == 1) {
         color2_2 = color1_2;
         stepVal2_2 = stepVal1_2;
@@ -384,21 +416,23 @@ void rainbow_for_two_OLD(strand_t * pStrand1, strand_t * pStrand2, unsigned long
 
 void rainbow_OLD(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
 {
-  Serial.println("DEMO: rainbow_OLD()");
+  Serial.print("DEMO: rainbow_OLD(");
+  Serial.print(pStrand->rmtChannel);
+  Serial.println(")");
   const uint8_t color_div = 4;
   const uint8_t anim_step = 1;
   const uint8_t anim_max = pStrand->brightLimit - anim_step;
-  rgbVal color1 = makeRGBVal(anim_max, 0, 0);
-  rgbVal color2 = makeRGBVal(anim_max, 0, 0);
+  pixelColor_t color1 = pixelFromRGB(anim_max, 0, 0);
+  pixelColor_t color2 = pixelFromRGB(anim_max, 0, 0);
   uint8_t stepVal1 = 0;
   uint8_t stepVal2 = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || (millis() - start_ms < timeout_ms)) {
     color1 = color2;
     stepVal1 = stepVal2;
     for (uint16_t i = 0; i < pStrand->numPixels; i++) {
-      pStrand->pixels[i] = makeRGBVal(color1.r/color_div, color1.g/color_div, color1.b/color_div);
+      pStrand->pixels[i] = pixelFromRGB(color1.r/color_div, color1.g/color_div, color1.b/color_div);
       if (i == 1) {
         color2 = color1;
         stepVal2 = stepVal1;
@@ -449,11 +483,11 @@ void test_loop()
     for (int i = 0; i < STRANDCNT; i++) {
       strand_t * pStrand = &STRANDS[i];
       for(uint16_t i = 0; i < pStrand->numPixels; i++) {
-        pStrand->pixels[i] = makeRGBVal(1, 1, 1);
+        pStrand->pixels[i] = pixelFromRGB(1, 1, 1);
       }
-      pStrand->pixels[0] = makeRGBVal(2, 1, 3);
-      pStrand->pixels[1] = makeRGBVal(5, 4, 6);
-      pStrand->pixels[2] = makeRGBVal(8, 7, 9);
+      pStrand->pixels[0] = pixelFromRGB(2, 1, 3);
+      pStrand->pixels[1] = pixelFromRGB(5, 4, 6);
+      pStrand->pixels[2] = pixelFromRGB(8, 7, 9);
       ws2812_setColors(pStrand);
     }
     #if DEBUG_WS2812_DRIVER
@@ -464,16 +498,86 @@ void test_loop()
   while(1) {}
 }
 
+int getMaxMalloc(int min_mem, int max_mem) {
+  int prev_size = min_mem;
+  int curr_size = min_mem;
+  int max_free = 0;
+//  Serial.print("checkmem: testing alloc from ");
+//  Serial.print(min_mem);
+//  Serial.print(" : ");
+//  Serial.print(max_mem);
+//  Serial.println(" bytes");
+  while (1) {
+    void * foo1 = malloc(curr_size);
+//    Serial.print("checkmem: attempt alloc of ");
+//    Serial.print(curr_size);
+//    Serial.print(" bytes --> pointer 0x");
+//    Serial.println((uintptr_t)foo1, HEX);
+    if (foo1 == nullptr) {  // Back off
+      max_mem = min(curr_size, max_mem);
+//      Serial.print("checkmem: backoff 2 prev = ");
+//      Serial.print(prev_size);
+//      Serial.print(", curr = ");
+//      Serial.print(curr_size);
+//      Serial.print(", max_mem = ");
+//      Serial.print(max_mem);
+//      Serial.println();
+      curr_size = (int)(curr_size - (curr_size - prev_size) / 2.0);
+//      Serial.print("checkmem: backoff 2 prev = ");
+//      Serial.print(prev_size);
+//      Serial.print(", curr = ");
+//      Serial.print(curr_size);
+//      Serial.println();
+    }
+    else {  // Advance
+      free(foo1);
+      max_free = curr_size;
+      prev_size = curr_size;
+      curr_size = min(curr_size * 2, max_mem);
+//      Serial.print("checkmem: advance 2 prev = ");
+//      Serial.print(prev_size);
+//      Serial.print(", curr = ");
+//      Serial.print(curr_size);
+//      Serial.println();
+    }
+    if (abs(curr_size - prev_size) == 0) {
+      break;
+    }
+  }
+  Serial.print("checkmem: max free heap = ");
+  Serial.print(esp_get_free_heap_size());
+  Serial.print(" bytes, max allocable = ");
+  Serial.print(max_free);
+  Serial.println(" bytes");
+  return max_free;
+}
+
+void dumpSysInfo() {
+  esp_chip_info_t sysinfo;
+  esp_chip_info(&sysinfo);
+  Serial.print("Model: ");
+  Serial.print((int)sysinfo.model);
+  Serial.print("; Features: 0x");
+  Serial.print((int)sysinfo.features, HEX);
+  Serial.print("; Cores: ");
+  Serial.print((int)sysinfo.cores);
+  Serial.print("; Revision: r");
+  Serial.println((int)sysinfo.revision);
+}
 
 void setup()
 {
+  Serial.begin(115200);
+  Serial.println("Initializing...");
+  dumpSysInfo();
+  getMaxMalloc(1*1024, 1024*1024);
+
   // TODO: this is to avoid crosstalk during testing
   gpioSetup(16, OUTPUT, LOW);
   gpioSetup(17, OUTPUT, LOW);
   gpioSetup(18, OUTPUT, LOW);
   gpioSetup(19, OUTPUT, LOW);
-  Serial.begin(115200);
-  Serial.println("Initializing...");
+
   if (ws2812_init(STRANDS, STRANDCNT)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
@@ -498,6 +602,17 @@ void setup()
 
 void loop()
 {
+  // scanner(&STRANDS[3], 0, 50000);
+  // return;
+
+  scanner(&STRANDS[2], 0, 4000);
+  rainbow(&STRANDS[2], 0, 4000); // all red if regular var not static, erratic if dynamic via `new`
+  displayOff(&STRANDS[2]);
+  delay(500);
+  rainbow_OLD(&STRANDS[2], 0, 4000);
+  displayOff(&STRANDS[2]);
+  delay(500);
+
   rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 5000);
   //rainbow_for_two_OLD(&STRANDS[0], &STRANDS[1], 0, 5000);
   //rainbow_for_two(&STRANDS[0], &STRANDS[1], 0, 5000);

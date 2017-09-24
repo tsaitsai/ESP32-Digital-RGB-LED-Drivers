@@ -69,21 +69,6 @@ const uint16_t MAX_PULSES = 32;  // A channel has a 64 "pulse" buffer - we use h
 const uint16_t DIVIDER    =  4;  // 8 still seems to work, but timings become marginal
 const double   RMT_DURATION_NS = 12.5;  // Minimum time of a single RMT duration based on clock ns
 
-typedef struct {
-  uint32_t T0H;
-  uint32_t T1H;
-  uint32_t T0L;
-  uint32_t T1L;
-  uint32_t TRS;
-} timingParams;
-
-const timingParams ledParamsAll[] = {  // MUST match order of led_types!
-  /* LED_WS2812 */   { .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
-  /* LED_WS2812B */  { .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000},
-  /* LED_SK6812 */   { .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
-  /* LED_WS2813 */   { .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000},
-};
-
 // LUT for mapping bits in RMT.int_<op>.ch<n>_tx_thr_event
 const uint32_t tx_thr_event_offsets [] = {
   static_cast<uint32_t>(1) << (24 + 0),
@@ -119,8 +104,8 @@ typedef union {
 } rmtPulsePair;
 
 typedef struct {
-  uint8_t * buf;
-  uint16_t pos, len, half, bufIsDirty;
+  uint8_t * buf_data;
+  uint16_t buf_pos, buf_len, buf_half, buf_isDirty;
   xSemaphoreHandle sem;
   rmtPulsePair pulsePairMap[2];
 } ws2812_stateData;
@@ -128,11 +113,10 @@ typedef struct {
 static strand_t * localStrands;
 static int localStrandCnt = 0;
 
-static intr_handle_t rmt_intr_handle = NULL;
+static intr_handle_t rmt_intr_handle = nullptr;
 
 // Forward declarations
 int ws2812_init(strand_t strands [], int numStrands);
-void ws2812_setColors(strand_t * pStrand);
 void copyToRmtBlock_half(strand_t * pStrand);
 void ws2812_handleInterrupt(void *arg);
 
@@ -156,13 +140,25 @@ int ws2812_init(strand_t strands [], int numStrands)
 
   for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
-    //pStrand->_stateVars = static_cast<ws2812_stateData*>(calloc(1, sizeof(ws2812_stateData)));
+    ledParams_t ledParams = ledParamsAll[pStrand->ledType];
+// TODO: find a better way to walk / index ledParamsAll - use a state var?
+
+    pStrand->pixels = static_cast<pixelColor_t*>(malloc(pStrand->numPixels * sizeof(pixelColor_t)));
+    if (pStrand->pixels == nullptr) {
+      return -1;
+    }
+
     pStrand->_stateVars = static_cast<ws2812_stateData*>(malloc(sizeof(ws2812_stateData)));
+    if (pStrand->_stateVars == nullptr) {
+      return -1;
+    }
     ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
-    //pStrand->pixels = static_cast<rgbVal*>(calloc(pStrand->numPixels, sizeof(rgbVal)));
-    pStrand->pixels = static_cast<rgbVal*>(malloc(pStrand->numPixels * sizeof(rgbVal)));
-    pState->len = (pStrand->numPixels * 3) * sizeof(uint8_t);
-    pState->buf = static_cast<uint8_t*>(malloc(pState->len));
+
+    pState->buf_len = (pStrand->numPixels * ledParams.bytesPerPixel);
+    pState->buf_data = static_cast<uint8_t*>(malloc(pState->buf_len));
+    if (pState->buf_data == nullptr) {
+      return -1;
+    }
 
     rmt_set_pin(
       static_cast<rmt_channel_t>(pStrand->rmtChannel),
@@ -184,8 +180,6 @@ int ws2812_init(strand_t strands [], int numStrands)
   
     RMT.tx_lim_ch[pStrand->rmtChannel].limit = MAX_PULSES;
   
-    timingParams ledParams = ledParamsAll[pStrand->ledType];
-  
     // RMT config for transmitting a '0' bit val to this LED strand
     pState->pulsePairMap[0].level0 = 1;
     pState->pulsePairMap[0].level1 = 0;
@@ -202,28 +196,45 @@ int ws2812_init(strand_t strands [], int numStrands)
     RMT.int_ena.val |= tx_end_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_end = 1;
   }
   
-  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, NULL, &rmt_intr_handle);
+  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, nullptr, &rmt_intr_handle);
 
   return 0;
 }
 
-void ws2812_setColors(strand_t * pStrand)
+int ws2812_setColors(strand_t * pStrand)
 {
   ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
+  ledParams_t ledParams = ledParamsAll[pStrand->ledType];
+// TODO: find a better way to walk / index ledParamsAll - use a state var?
 
-  for (uint16_t i = 0; i < pStrand->numPixels; i++) {
-    // Color order is translated from RGB (e.g., WS2812 = GRB)
-    pState->buf[0 + i * 3] = pStrand->pixels[i].g;
-    pState->buf[1 + i * 3] = pStrand->pixels[i].r;
-    pState->buf[2 + i * 3] = pStrand->pixels[i].b;
+  // Pack pixels into transmission buffer
+  if (ledParams.bytesPerPixel == 3) {
+    for (uint16_t i = 0; i < pStrand->numPixels; i++) {
+      // Color order is translated from RGB to GRB
+      pState->buf_data[0 + i * 3] = pStrand->pixels[i].g;
+      pState->buf_data[1 + i * 3] = pStrand->pixels[i].r;
+      pState->buf_data[2 + i * 3] = pStrand->pixels[i].b;
+    }
+  }
+  else if (ledParams.bytesPerPixel == 4) {
+    for (uint16_t i = 0; i < pStrand->numPixels; i++) {
+      // Color order is translated from RGBW to GRBW
+      pState->buf_data[0 + i * 4] = pStrand->pixels[i].g;
+      pState->buf_data[1 + i * 4] = pStrand->pixels[i].r;
+      pState->buf_data[2 + i * 4] = pStrand->pixels[i].b;
+      pState->buf_data[3 + i * 4] = pStrand->pixels[i].w;
+    }    
+  }
+  else {
+    return -1;
   }
 
-  pState->pos = 0;
-  pState->half = 0;
+  pState->buf_pos = 0;
+  pState->buf_half = 0;
 
   copyToRmtBlock_half(pStrand);
 
-  if (pState->pos < pState->len) {
+  if (pState->buf_pos < pState->buf_len) {
     // Fill the other half of the buffer block
     #if DEBUG_WS2812_DRIVER
       snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s# ", ws2812_debugBuffer);
@@ -238,9 +249,9 @@ void ws2812_setColors(strand_t * pStrand)
 
   xSemaphoreTake(pState->sem, portMAX_DELAY);
   vSemaphoreDelete(pState->sem);
-  pState->sem = NULL;
+  pState->sem = nullptr;
 
-  return;
+  return 0;
 }
 
 void copyToRmtBlock_half(strand_t * pStrand)
@@ -249,32 +260,33 @@ void copyToRmtBlock_half(strand_t * pStrand)
   // When wraparound is happening, we want to keep the inactive half of the RMT block filled
 
   ws2812_stateData * pState = static_cast<ws2812_stateData*>(pStrand->_stateVars);
-  timingParams ledParams = ledParamsAll[pStrand->ledType];
+  ledParams_t ledParams = ledParamsAll[pStrand->ledType];
+// TODO: find a better way to walk / index ledParamsAll - use a state var?
 
   uint16_t i, j, offset, len, byteval;
 
-  offset = pState->half * MAX_PULSES;
-  pState->half = !pState->half;
+  offset = pState->buf_half * MAX_PULSES;
+  pState->buf_half = !pState->buf_half;
 
-  len = pState->len - pState->pos;
+  len = pState->buf_len - pState->buf_pos;
   if (len > (MAX_PULSES / 8))
     len = (MAX_PULSES / 8);
 
   if (!len) {
-    if (!pState->bufIsDirty) {
+    if (!pState->buf_isDirty) {
       return;
     }
     // Clear the channel's data block and return
     for (i = 0; i < MAX_PULSES; i++) {
       RMTMEM.chan[pStrand->rmtChannel].data32[i + offset].val = 0;
     }
-    pState->bufIsDirty = 0;
+    pState->buf_isDirty = 0;
     return;
   }
-  pState->bufIsDirty = 1;
+  pState->buf_isDirty = 1;
 
   for (i = 0; i < len; i++) {
-    byteval = pState->buf[i + pState->pos];
+    byteval = pState->buf_data[i + pState->buf_pos];
 
     #if DEBUG_WS2812_DRIVER
       snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s%d(", ws2812_debugBuffer, byteval);
@@ -295,7 +307,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
     #endif
 
     // Handle the reset bit by stretching duration1 for the final bit in the stream
-    if (i + pState->pos == pState->len - 1) {
+    if (i + pState->buf_pos == pState->buf_len - 1) {
       RMTMEM.chan[pStrand->rmtChannel].data32[i * 8 + offset + 7].duration1 =
         ledParams.TRS / (RMT_DURATION_NS * DIVIDER);
       #if DEBUG_WS2812_DRIVER
@@ -309,7 +321,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
     RMTMEM.chan[pStrand->rmtChannel].data32[i + offset].val = 0;
   }
   
-  pState->pos += len;
+  pState->buf_pos += len;
 
   #if DEBUG_WS2812_DRIVER
     snprintf(ws2812_debugBuffer, ws2812_debugBufferSz, "%s ", ws2812_debugBuffer);

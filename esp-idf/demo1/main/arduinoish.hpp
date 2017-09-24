@@ -57,6 +57,11 @@
   #define OCT 8
   #define BIN 2
 
+  #define min(a, b)  ((a) < (b) ? (a) : (b))
+  #define max(a, b)  ((a) > (b) ? (a) : (b))
+  #define floor(a)   ((int)(a))
+  #define ceil(a)    ((int)((int)(a) < (a) ? (a+1) : (a)))
+
   uint32_t IRAM_ATTR millis()
   {
     return xTaskGetTickCount() * portTICK_PERIOD_MS;
@@ -76,11 +81,26 @@
         delay(500);
         uart_set_baudrate(UART_NUM_0, baud_rate);
       }
+
+      inline void print()
+      {
+        ets_printf("");
+      }
+      inline void println()
+      {
+        ets_printf("\n");
+      }
+
       inline void print(const char * arg)
       {
         ets_printf("%s", arg);
       }
-      inline void print(const int arg, int argType)
+      inline void println(const char * arg)
+      {
+        ets_printf("%s\n", arg);
+      }
+
+      inline void print(const int arg, int argType = DEC)
       {
         switch (argType) {
           case DEC:
@@ -99,17 +119,24 @@
             ets_printf("%d", arg);
         }
       }
-      inline void print(const int arg)
+      inline void println(const int arg, int argType = DEC)
       {
-        ets_printf("%d", arg);
-      }
-      inline void println(const char * arg)
-      {
-        ets_printf("%s\n", arg);
-      }
-      inline void println()
-      {
-        ets_printf("\n");
+        switch (argType) {
+          case DEC:
+            ets_printf("%d\n", arg);
+            break;
+          case HEX:
+            ets_printf("%x\n", arg);
+            break;
+          case OCT:
+            ets_printf("%o\n", arg);
+            break;
+          case BIN:
+            ets_printf("%x\n", arg);  // TODO: Not implemented yet
+            break;
+          default:
+            ets_printf("%d\n", arg);
+        }
       }
   } Serial;
 

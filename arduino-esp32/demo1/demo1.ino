@@ -31,7 +31,6 @@
  */
 
 #include "ws2812.h"
-#include "classtest.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
   // No extras
@@ -144,10 +143,10 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
   int prevIdx = 0;
   bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (runForever || !(millis() - start_ms >= timeout_ms && currIdx != 0)) {
+  while (runForever || !(millis() - start_ms >= timeout_ms && currIdx == 0)) {
     pStrand->pixels[prevIdx] = pixelFromRGBW(0, 0, 0, 0);
     pStrand->pixels[currIdx] = pixelFromRGBW(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);
-    Serial.println(currIdx);
+    // Serial.println(currIdx);
     ws2812_setColors(pStrand);
     prevIdx = currIdx;
     currIdx++;
@@ -516,7 +515,14 @@ int getMaxMalloc(int min_mem, int max_mem) {
 //    Serial.println((uintptr_t)foo1, HEX);
     if (foo1 == nullptr) {  // Back off
       max_mem = min(curr_size, max_mem);
-      curr_size = curr_size - ceil(curr_size - prev_size) / 2;
+//      Serial.print("checkmem: backoff 2 prev = ");
+//      Serial.print(prev_size);
+//      Serial.print(", curr = ");
+//      Serial.print(curr_size);
+//      Serial.print(", max_mem = ");
+//      Serial.print(max_mem);
+//      Serial.println();
+      curr_size = (int)(curr_size - (curr_size - prev_size) / 2.0);
 //      Serial.print("checkmem: backoff 2 prev = ");
 //      Serial.print(prev_size);
 //      Serial.print(", curr = ");
@@ -550,13 +556,13 @@ void dumpSysInfo() {
   esp_chip_info_t sysinfo;
   esp_chip_info(&sysinfo);
   Serial.print("Model: ");
-  Serial.print(sysinfo.model);
+  Serial.print((int)sysinfo.model);
   Serial.print("; Features: 0x");
-  Serial.print(sysinfo.features, HEX);
+  Serial.print((int)sysinfo.features, HEX);
   Serial.print("; Cores: ");
-  Serial.print(sysinfo.cores);
+  Serial.print((int)sysinfo.cores);
   Serial.print("; Revision: r");
-  Serial.println(sysinfo.revision);
+  Serial.println((int)sysinfo.revision);
 }
 
 void setup()
