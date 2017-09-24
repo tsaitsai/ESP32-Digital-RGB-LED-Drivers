@@ -65,14 +65,14 @@ void dumpBytes(void * pts, int numBytes) {
 }
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
+//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
+//   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
    .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
    .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64,
    .pixels = nullptr, ._stateVars = nullptr},
-//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 300,
-//   .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W, .brightLimit = 32, .numPixels = 300,
    .pixels = nullptr, ._stateVars = nullptr},
 };
@@ -109,14 +109,14 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
   Serial.print(", ");
   Serial.print(pStrand2->rmtChannel);
   Serial.println(")");
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   int currIdx1 = 0;
   int currIdx2 = 0;
   int prevIdx1 = 0;
   int prevIdx2 = 0;
   unsigned long start_ms = millis();
   pixelColor_t offColor = pixelFromRGB(0, 0, 0);
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || (millis() - start_ms < timeout_ms)) {
     pixelColor_t newColor1 = pixelFromRGB(0, 0, pStrand1->brightLimit);
     pixelColor_t newColor2 = pixelFromRGB(pStrand2->brightLimit, 0 ,0);
     pStrand1->pixels[prevIdx1] = offColor;
@@ -142,9 +142,9 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
   Serial.println(")");
   int currIdx = 0;
   int prevIdx = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || !(millis() - start_ms >= timeout_ms && currIdx != 0)) {
     pStrand->pixels[prevIdx] = pixelFromRGBW(0, 0, 0, 0);
     pStrand->pixels[currIdx] = pixelFromRGBW(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);
     Serial.println(currIdx);
@@ -156,7 +156,6 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     }
     delay(delay_ms);
   }
-  Serial.print("DEMO: scanner - outta time!");
   displayOff(pStrand);
 }
 
@@ -323,9 +322,9 @@ void rainbow_for_two_OLD(strand_t * pStrand1, strand_t * pStrand2, unsigned long
   uint8_t stepVal2_1 = 0;
   uint8_t stepVal1_2 = 0;
   uint8_t stepVal2_2 = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || (millis() - start_ms < timeout_ms)) {
     color1_1 = color2_1;
     stepVal1_1 = stepVal2_1;
     for (uint16_t i = 0; i < pStrand1->numPixels; i++) {
@@ -428,9 +427,9 @@ void rainbow_OLD(strand_t * pStrand, unsigned long delay_ms, unsigned long timeo
   pixelColor_t color2 = pixelFromRGB(anim_max, 0, 0);
   uint8_t stepVal1 = 0;
   uint8_t stepVal2 = 0;
-  bool RUN_FOREVER = (timeout_ms == 0 ? true : false);
+  bool runForever = (timeout_ms == 0 ? true : false);
   unsigned long start_ms = millis();
-  while (RUN_FOREVER || (millis() - start_ms < timeout_ms)) {
+  while (runForever || (millis() - start_ms < timeout_ms)) {
     color1 = color2;
     stepVal1 = stepVal2;
     for (uint16_t i = 0; i < pStrand->numPixels; i++) {
@@ -547,22 +546,32 @@ int getMaxMalloc(int min_mem, int max_mem) {
   return max_free;
 }
 
+void dumpSysInfo() {
+  esp_chip_info_t sysinfo;
+  esp_chip_info(&sysinfo);
+  Serial.print("Model: ");
+  Serial.print(sysinfo.model);
+  Serial.print("; Features: 0x");
+  Serial.print(sysinfo.features, HEX);
+  Serial.print("; Cores: ");
+  Serial.print(sysinfo.cores);
+  Serial.print("; Revision: r");
+  Serial.println(sysinfo.revision);
+}
+
 void setup()
 {
+  Serial.begin(115200);
+  Serial.println("Initializing...");
+  dumpSysInfo();
+  getMaxMalloc(1*1024, 1024*1024);
+
   // TODO: this is to avoid crosstalk during testing
   gpioSetup(16, OUTPUT, LOW);
   gpioSetup(17, OUTPUT, LOW);
   gpioSetup(18, OUTPUT, LOW);
   gpioSetup(19, OUTPUT, LOW);
-  Serial.begin(115200);
-  getMaxMalloc(1*1024, 113803);
-  getMaxMalloc(1*1024, 113804);
-  getMaxMalloc(1*1024, 113805);
-  getMaxMalloc(113803, 200000);
-  getMaxMalloc(113804, 200000);
-  getMaxMalloc(113805, 200000);
-  Serial.println("Initializing...");
-  getMaxMalloc(1*1024, 256*1024);
+
   if (ws2812_init(STRANDS, STRANDCNT)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
@@ -587,9 +596,10 @@ void setup()
 
 void loop()
 {
-//  scanner(&STRANDS[3], 0, 50000);
-//  return;
+  // scanner(&STRANDS[3], 0, 50000);
+  // return;
 
+  scanner(&STRANDS[2], 0, 4000);
   rainbow(&STRANDS[2], 0, 4000); // all red if regular var not static, erratic if dynamic via `new`
   displayOff(&STRANDS[2]);
   delay(500);

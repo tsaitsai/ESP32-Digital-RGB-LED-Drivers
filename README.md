@@ -14,7 +14,7 @@ There are working demos for Espressif's IoT Development Framework (esp-idf) and 
 
 This currently works well with WS2812/NeoPixel RGB LEDs (3 bytes of data per LED) - SK6812 RGB LEDs should work equally well. This should also work fine with WS2813 (no hardware to test this yet).
 
-Thes also works well with SK6812 RGBW LEDs (4 bytes of data per LED). These are similar to the WS2812 LEDs, but with a white LED present as well - keep in mind these RGBW LEDs draw a fair bit more power than the usual RGB LEDs.
+Thes also works well with SK6812 RGBW LEDs (4 bytes of data per LED). These are similar to the WS2812 LEDs, but with a white LED present as well - keep in mind that RGBW LEDs draw a fair bit more power than the usual RGB LEDs due to the extra bright white LED element present.
 
 <hr>
 
