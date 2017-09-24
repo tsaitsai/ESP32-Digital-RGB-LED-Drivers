@@ -30,6 +30,10 @@
 #ifndef WS2812_DRIVER_H
 #define WS2812_DRIVER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #define DEBUG_WS2812_DRIVER 0
@@ -96,6 +100,10 @@ inline pixelColor_t pixelFromRGBW(uint8_t r, uint8_t g, uint8_t b, uint8_t w)
   v.w = w;
   return v;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WS2812_DRIVER_H */
 
