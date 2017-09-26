@@ -10,7 +10,7 @@ Based upon the [ESP32 WS2812 driver work by Chris Osborn](https://github.com/Foz
 
 The RMT peripheral of the ESP32 is used for controlling up to 8 LED "strands" (in whatever form factor the serially-chained LEDs are placed). These strands are independently controlled and buffered. So far I've tested 4 strands successfully.
 
-There are working demos for Espressif's IoT Development Framework (esp-idf) and Arduino-ESP32 core.
+There are working demos for Espressif's IoT Development Framework (esp-idf) and Arduino-ESP32 core. Some demos are ONLY for the ESP IDF (demonstrating C-only techniques). Otherwise, a given demo should be exactly the same on either framework.
 
 This currently works well with WS2812/NeoPixel RGB LEDs (3 bytes of data per LED) - SK6812 RGB LEDs should work equally well. This should also work fine with WS2813 (no hardware to test this yet).
 
@@ -28,10 +28,7 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
 
 ### TODO
 
-  - Arduino-ESP32 and classes - very weird if not static or instantiated with `new`??
-    - Demo1 fails differently on `rainbow_for_three()`, but they both tend to partially fail - why?
-  - Add a stripped-down demo2 in C
-  - Mirror changes to the ESP-IDF side (simple sync)
+  - ws2812_init() should zero out the colors
   - Fix TODOs in code
   - Add more interleaved demos, and more demos in general
   - Make Arduino side a true Arduino library? May not be practical.
