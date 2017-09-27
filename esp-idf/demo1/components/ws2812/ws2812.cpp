@@ -54,6 +54,7 @@ extern "C" {
   #include <soc/gpio_sig_map.h>
   #include <soc/rmt_struct.h>
   #include <stdio.h>
+  #include <string.h>  // memset, memcpy, etc. live here!
 #endif
 
 #ifdef __cplusplus
