@@ -78,8 +78,8 @@ const ledParams_t ledParamsAll[] = {  // MUST match order of led_types!
 };
 
 extern int ws2812_init(strand_t strands [], int numStrands);
-
 extern int ws2812_setColors(strand_t * strand);
+extern void ws2812_resetPixels(strand_t * pStrand);
 
 inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b)
 {

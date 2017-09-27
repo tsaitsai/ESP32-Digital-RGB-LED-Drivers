@@ -28,7 +28,6 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
 
 ### TODO
 
-  - ws2812_init() should zero out the colors
   - Fix TODOs in code
   - Add more interleaved demos, and more demos in general
   - Make Arduino side a true Arduino library? May not be practical.

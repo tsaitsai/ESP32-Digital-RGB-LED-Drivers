@@ -59,10 +59,6 @@ void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
   #endif
 }
 
-void dumpBytes(void * pts, int numBytes) {
-  // TODO: write this to sample pixel buffer
-}
-
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
 //  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
 //   .pixels = nullptr, ._stateVars = nullptr},
@@ -78,7 +74,6 @@ strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
 // Forward declarations
-void displayOff(strand_t *);
 void rainbow(strand_t *, unsigned long, unsigned long);
 void scanner(strand_t *, unsigned long, unsigned long);
 void dumpDebugBuffer(int, char *);
@@ -90,15 +85,6 @@ void dumpDebugBuffer(int id, char * debugBuffer)
   Serial.print(") ");
   Serial.println(debugBuffer);
   debugBuffer[0] = 0;
-}
-
-void displayOff(strand_t * pStrand)
-{
-  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
-  for (int i = 0; i < pStrand->numPixels; i++) {
-    pStrand->pixels[i] = offColor;
-  }
-  ws2812_setColors(pStrand);
 }
 
 void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
@@ -130,8 +116,8 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
     currIdx2 = (currIdx2 + 1) % pStrand2->numPixels;
     delay(delay_ms);
   }
-  displayOff(pStrand1);
-  displayOff(pStrand2);
+  ws2812_resetPixels(pStrand1);
+  ws2812_resetPixels(pStrand2);
 }
 
 void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
@@ -155,7 +141,7 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     }
     delay(delay_ms);
   }
-  displayOff(pStrand);
+  ws2812_resetPixels(pStrand);
 }
 
 class Rainbower {
@@ -167,7 +153,6 @@ class Rainbower {
     uint8_t stepVal2;
     pixelColor_t color1;
     pixelColor_t color2;
-    uint8_t TODO[1024];
   public:
     Rainbower(strand_t *);
     void drawNext();
@@ -259,9 +244,9 @@ void rainbow_for_three(strand_t * pStrand1, strand_t * pStrand2, strand_t * pStr
     pRbow3->drawNext();
     delay(delay_ms);
   }
-  displayOff(pStrand1);
-  displayOff(pStrand2);
-  displayOff(pStrand3);
+  ws2812_resetPixels(pStrand1);
+  ws2812_resetPixels(pStrand2);
+  ws2812_resetPixels(pStrand3);
 }
 
 void rainbow_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
@@ -279,8 +264,8 @@ void rainbow_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
     pRbow2->drawNext();
     delay(delay_ms);
   }
-  displayOff(pStrand1);
-  displayOff(pStrand2);
+  ws2812_resetPixels(pStrand1);
+  ws2812_resetPixels(pStrand2);
 }
 
 void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
@@ -299,7 +284,7 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     delay(delay_ms);
   }
   //delete pRbow; // risky if you forget this! Or free memory out of sequence...
-  displayOff(pStrand);
+  ws2812_resetPixels(pStrand);
 }
 
 void test_loop()
@@ -398,7 +383,14 @@ void setup()
   dumpSysInfo();
   getMaxMalloc(1*1024, 1024*1024);
 
-  // TODO: this is to avoid crosstalk during testing
+  /****************************************************************************
+     If you have multiple strands connected, but not all are in use, the
+     GPIO power-on defaults for the unused strand data lines will typically be
+     high-impedance. Unless you are pulling the data lines high or low via a
+     resistor, this will lead to noise on those unused but connected channels
+     and unwanted driving of those unallocated strands.
+     This optional gpioSetup() code helps avoid that problem programmatically.
+  ****************************************************************************/
   gpioSetup(16, OUTPUT, LOW);
   gpioSetup(17, OUTPUT, LOW);
   gpioSetup(18, OUTPUT, LOW);
@@ -418,7 +410,7 @@ void setup()
     #if DEBUG_WS2812_DRIVER
       dumpDebugBuffer(-2, ws2812_debugBuffer);
     #endif
-    displayOff(pStrand);
+    ws2812_resetPixels(pStrand);
     #if DEBUG_WS2812_DRIVER
       dumpDebugBuffer(-1, ws2812_debugBuffer);
     #endif
@@ -445,7 +437,7 @@ void loop()
     strand_t * pStrand = &STRANDS[i];
     rainbow(pStrand, 0, 2000);
     scanner(pStrand, 0, 2000);
-    displayOff(pStrand);
+    ws2812_resetPixels(pStrand);
     #if DEBUG_WS2812_DRIVER
       dumpDebugBuffer(test_passes, ws2812_debugBuffer);
     #endif

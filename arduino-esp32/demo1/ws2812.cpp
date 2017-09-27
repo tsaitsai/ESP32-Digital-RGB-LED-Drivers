@@ -115,10 +115,9 @@ static int localStrandCnt = 0;
 
 static intr_handle_t rmt_intr_handle = nullptr;
 
-// Forward declarations
-int ws2812_init(strand_t strands [], int numStrands);
+// Forward declarations of local functions
 void copyToRmtBlock_half(strand_t * pStrand);
-void ws2812_handleInterrupt(void *arg);
+void handleInterrupt(void *arg);
 
 int ws2812_init(strand_t strands [], int numStrands)
 {
@@ -196,9 +195,24 @@ int ws2812_init(strand_t strands [], int numStrands)
     RMT.int_ena.val |= tx_end_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_end = 1;
   }
   
-  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, ws2812_handleInterrupt, nullptr, &rmt_intr_handle);
+  esp_intr_alloc(ETS_RMT_INTR_SOURCE, 0, handleInterrupt, nullptr, &rmt_intr_handle);
+
+  for (int i = 0; i < localStrandCnt; i++) {
+    strand_t * pStrand = &localStrands[i];
+    ws2812_resetPixels(pStrand);
+  }
 
   return 0;
+}
+
+void ws2812_resetPixels(strand_t * pStrand)
+{
+//  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
+//  for (int i = 0; i < pStrand->numPixels; i++) {
+//    pStrand->pixels[i] = offColor;
+//  }
+  memset(pStrand->pixels, 0, pStrand->numPixels * sizeof(pixelColor_t));
+  ws2812_setColors(pStrand);
 }
 
 int ws2812_setColors(strand_t * pStrand)
@@ -330,7 +344,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
   return;
 }
 
-void ws2812_handleInterrupt(void *arg)
+void handleInterrupt(void *arg)
 {
   portBASE_TYPE taskAwoken = 42;  // TODO: does this value actually matter?
 
