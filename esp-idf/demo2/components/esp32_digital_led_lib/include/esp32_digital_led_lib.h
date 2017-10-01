@@ -45,42 +45,6 @@ typedef union {
   uint32_t num;
 } pixelColor_t;
 
-typedef struct {
-  int rmtChannel;
-  int gpioNum;
-  int ledType;
-  int brightLimit;
-  int numPixels;
-  pixelColor_t * pixels;
-  void * _stateVars;
-} strand_t;
-
-enum led_types {LED_WS2812, LED_WS2812B, LED_WS2813, LED_SK6812, LED_SK6812W};
-
-typedef struct {
-  int ledType;
-  int bytesPerPixel;
-  uint32_t T0H;
-  uint32_t T1H;
-  uint32_t T0L;
-  uint32_t T1L;
-  uint32_t TRS;
-} ledParams_t;
-
-const ledParams_t ledParamsAll[] = {  // MUST match order of led_types!
-  { .ledType = LED_WS2812,  .bytesPerPixel = 3, .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
-//{ .ledType = LED_WS2812B, .bytesPerPixel = 3, .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000}, // Older datasheet
-//{ .ledType = LED_WS2812B, .bytesPerPixel = 3, .T0H = 400, .T1H = 850, .T0L = 850, .T1L = 400, .TRS =  50000}, // 2016 datasheet
-  { .ledType = LED_WS2812B, .bytesPerPixel = 3, .T0H = 450, .T1H = 850, .T0L = 850, .T1L = 450, .TRS =  50000}, // cplcpu test
-  { .ledType = LED_WS2813,  .bytesPerPixel = 3, .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000},
-  { .ledType = LED_SK6812,  .bytesPerPixel = 3, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
-  { .ledType = LED_SK6812W, .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
-};
-
-extern int digitalLeds_init(strand_t strands [], int numStrands);
-extern int digitalLeds_update(strand_t * strand);
-extern void digitalLeds_reset(strand_t * pStrand);
-
 inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b)
 {
   pixelColor_t v;
@@ -100,6 +64,41 @@ inline pixelColor_t pixelFromRGBW(uint8_t r, uint8_t g, uint8_t b, uint8_t w)
   v.w = w;
   return v;
 }
+
+typedef struct {
+  int rmtChannel;
+  int gpioNum;
+  int ledType;
+  int brightLimit;
+  int numPixels;
+  pixelColor_t * pixels;
+  void * _stateVars;
+} strand_t;
+
+typedef struct {
+  int bytesPerPixel;
+  uint32_t T0H;
+  uint32_t T1H;
+  uint32_t T0L;
+  uint32_t T1L;
+  uint32_t TRS;
+} ledParams_t;
+
+enum led_types { LED_WS2812, LED_WS2812B, LED_WS2813, LED_SK6812, LED_SK6812W };
+
+const ledParams_t ledParamsAll[] = {  // Still must match order of `led_types`
+  [LED_WS2812]  = { .bytesPerPixel = 3, .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
+//[LED_WS2812B] = { .bytesPerPixel = 3, .T0H = 350, .T1H = 900, .T0L = 900, .T1L = 350, .TRS =  50000}, // Older datasheet
+//[LED_WS2812B] = { .bytesPerPixel = 3, .T0H = 400, .T1H = 850, .T0L = 850, .T1L = 400, .TRS =  50000}, // 2016 datasheet
+  [LED_WS2812B] = { .bytesPerPixel = 3, .T0H = 450, .T1H = 850, .T0L = 850, .T1L = 450, .TRS =  50000}, // cplcpu test
+  [LED_WS2813]  = { .bytesPerPixel = 3, .T0H = 350, .T1H = 800, .T0L = 350, .T1L = 350, .TRS = 300000},
+  [LED_SK6812]  = { .bytesPerPixel = 3, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
+  [LED_SK6812W] = { .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
+};
+
+extern int digitalLeds_init(strand_t strands [], int numStrands);
+extern int digitalLeds_update(strand_t * strand);
+extern void digitalLeds_reset(strand_t * pStrand);
 
 #ifdef __cplusplus
 }

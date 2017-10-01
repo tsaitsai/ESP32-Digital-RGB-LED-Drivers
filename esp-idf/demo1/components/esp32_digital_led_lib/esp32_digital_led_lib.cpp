@@ -117,6 +117,7 @@ static intr_handle_t rmt_intr_handle = nullptr;
 static void copyToRmtBlock_half(strand_t * pStrand);
 static void handleInterrupt(void *arg);
 
+
 int digitalLeds_init(strand_t strands [], int numStrands)
 {
   #if DEBUG_ESP32_DIGITAL_LED_LIB
@@ -139,7 +140,6 @@ int digitalLeds_init(strand_t strands [], int numStrands)
   for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
     ledParams_t ledParams = ledParamsAll[pStrand->ledType];
-// TODO: find a better way to walk / index ledParamsAll - use a state var?
 
     pStrand->pixels = static_cast<pixelColor_t*>(malloc(pStrand->numPixels * sizeof(pixelColor_t)));
     if (pStrand->pixels == nullptr) {
@@ -206,10 +206,6 @@ int digitalLeds_init(strand_t strands [], int numStrands)
 
 void digitalLeds_reset(strand_t * pStrand)
 {
-//  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
-//  for (int i = 0; i < pStrand->numPixels; i++) {
-//    pStrand->pixels[i] = offColor;
-//  }
   memset(pStrand->pixels, 0, pStrand->numPixels * sizeof(pixelColor_t));
   digitalLeds_update(pStrand);
 }
@@ -218,7 +214,6 @@ int IRAM_ATTR digitalLeds_update(strand_t * pStrand)
 {
   digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
   ledParams_t ledParams = ledParamsAll[pStrand->ledType];
-// TODO: find a better way to walk / index ledParamsAll - use a state var?
 
   // Pack pixels into transmission buffer
   if (ledParams.bytesPerPixel == 3) {
@@ -275,7 +270,6 @@ static IRAM_ATTR void copyToRmtBlock_half(strand_t * pStrand)
 
   digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
   ledParams_t ledParams = ledParamsAll[pStrand->ledType];
-// TODO: find a better way to walk / index ledParamsAll - use a state var?
 
   uint16_t i, j, offset, len, byteval;
 
@@ -349,7 +343,7 @@ static IRAM_ATTR void copyToRmtBlock_half(strand_t * pStrand)
   return;
 }
 
-static IRAM_ATTR void handleInterrupt(void *arg)  // TODO: should this be `static IRAM_ATTR`?
+static IRAM_ATTR void handleInterrupt(void *arg)
 {
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 

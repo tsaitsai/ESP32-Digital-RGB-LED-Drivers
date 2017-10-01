@@ -38,7 +38,7 @@
 #endif
 
 // **Required** if debugging is enabled in library header
-// TODO: remove requirement?
+// TODO: Is there any way to put this in digitalLeds_init() and avoid undefined refs?
 #if DEBUG_ESP32_DIGITAL_LED_LIB
   int digitalLeds_debugBufferSz = 1024;
   char * digitalLeds_debugBuffer = static_cast<char*>(calloc(digitalLeds_debugBufferSz, sizeof(char)));
@@ -58,8 +58,8 @@ void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
 }
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
-//   .pixels = nullptr, ._stateVars = nullptr},
+//{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
+// .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
    .pixels = nullptr, ._stateVars = nullptr},
   {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
@@ -418,26 +418,26 @@ void setup()
 
 void loop()
 {
-//  // mem tests
-//  rainbow(&STRANDS[2], 0, 1);
-//  getMaxMalloc(1*1024, 1024*1024);
-//  rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 1);
-//  getMaxMalloc(1*1024, 1024*1024);
-//  return;
-
-//  // print tests
-//  Serial.println(0xFFFFFFFF, DEC);
-//  Serial.println(0xFFFFFFFF, HEX);
-//  Serial.println(0xFFFFFFFF, BIN);
-//  Serial.println(0x7FFFFFFF, DEC);
-//  Serial.println(0x7FFFFFFF, HEX);
-//  Serial.println(0x7FFFFFFF, BIN);
-//  Serial.println(0x00000000, DEC);
-//  Serial.println(0x00000000, HEX);
-//  Serial.println(0x00000000, BIN);
-//  Serial.println(        -1, DEC);
-//  Serial.println(        -1, HEX);
-//  Serial.println(        -1, BIN);
+  //  // mem tests
+  //  rainbow(&STRANDS[2], 0, 1);
+  //  getMaxMalloc(1*1024, 1024*1024);
+  //  rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 1);
+  //  getMaxMalloc(1*1024, 1024*1024);
+  //  return;
+  
+  //  // print tests
+  //  Serial.println(0xFFFFFFFF, DEC);
+  //  Serial.println(0xFFFFFFFF, HEX);
+  //  Serial.println(0xFFFFFFFF, BIN);
+  //  Serial.println(0x7FFFFFFF, DEC);
+  //  Serial.println(0x7FFFFFFF, HEX);
+  //  Serial.println(0x7FFFFFFF, BIN);
+  //  Serial.println(0x00000000, DEC);
+  //  Serial.println(0x00000000, HEX);
+  //  Serial.println(0x00000000, BIN);
+  //  Serial.println(        -1, DEC);
+  //  Serial.println(        -1, HEX);
+  //  Serial.println(        -1, BIN);
 
   scanner(&STRANDS[2], 0, 2000);
   scanner(&STRANDS[2], 1, 2000); // A tiny delay can smooth things out
@@ -454,7 +454,7 @@ void loop()
     scanner(pStrand, 0, 2000);
     digitalLeds_reset(pStrand);
     #if DEBUG_ESP32_DIGITAL_LED_LIB
-      dumpDebugBuffer(test_passes, digitalLeds_debugBuffer);
+      dumpDebugBuffer(i+1, digitalLeds_debugBuffer);
     #endif
   }
 }
