@@ -65,6 +65,7 @@ strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
   {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W, .brightLimit = 32, .numPixels = 300,
    .pixels = nullptr, ._stateVars = nullptr},
 };
+
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
 
 void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {

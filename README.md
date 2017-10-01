@@ -31,5 +31,6 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
   - Resolve open TODOs in code
   - WS2813 testing (update note above)
   - Add more interleaved demos, and more demos in general
+  - Implement binary output in Arduino shim
   - Make Arduino side a true Arduino library? May not be practical.
   - APA102/DotStar support?

@@ -72,6 +72,25 @@
 
   class SerialStub {
     public:
+      inline char * _intToBin(int arg, char *retBuf, int bufSize)
+      {
+        int NumBits = bufSize - 1;
+        int mask = 1;
+        int lastOne = NumBits - 1; // Removes zero-padding, but always get at least '0'
+        for (int i = NumBits; i > 0; i--)
+        {
+          retBuf[i-1] = '0';
+          if ((arg & mask) == mask)
+          {
+            retBuf[i-1] = '1';
+            lastOne = i - 1;
+          }
+          mask <<= 1;
+        }
+        retBuf[NumBits] = 0;
+        return &retBuf[lastOne];
+      }
+      
       inline void begin(uint32_t baud_rate)
       {
         delay(500);
@@ -93,23 +112,28 @@
       }
       inline void println(const char * arg)
       {
-        ets_printf("%s\n", arg);
+        print(arg);
+        ets_printf("\n");
       }
 
       inline void print(const int arg, int argType = DEC)
       {
         switch (argType) {
           case DEC:
-            ets_printf("%d", arg);
+            ets_printf("%ld", arg);
             break;
           case HEX:
-            ets_printf("%x", arg);
+            ets_printf("%X", arg);
             break;
           case OCT:
             ets_printf("%o", arg);
             break;
           case BIN:
-            ets_printf("%x", arg);  // TODO: Not implemented yet
+            {
+              const int NumBits = 32;
+              char buf[sizeof(char) * NumBits + 1];
+              ets_printf("%s", _intToBin(arg, buf, NumBits+1));
+            }
             break;
           default:
             ets_printf("%d", arg);
@@ -117,23 +141,10 @@
       }
       inline void println(const int arg, int argType = DEC)
       {
-        switch (argType) {
-          case DEC:
-            ets_printf("%d\n", arg);
-            break;
-          case HEX:
-            ets_printf("%x\n", arg);
-            break;
-          case OCT:
-            ets_printf("%o\n", arg);
-            break;
-          case BIN:
-            ets_printf("%x\n", arg);  // TODO: Not implemented yet
-            break;
-          default:
-            ets_printf("%d\n", arg);
-        }
+        print(arg, argType);
+        ets_printf("\n");
       }
+
   } Serial;
 
   void setup(void);

@@ -418,13 +418,30 @@ void setup()
 
 void loop()
 {
-// mem tests
+//  // mem tests
 //  rainbow(&STRANDS[2], 0, 1);
 //  getMaxMalloc(1*1024, 1024*1024);
 //  rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 1);
 //  getMaxMalloc(1*1024, 1024*1024);
 //  return;
 
+//  // print tests
+//  Serial.println(0xFFFFFFFF, DEC);
+//  Serial.println(0xFFFFFFFF, HEX);
+//  Serial.println(0xFFFFFFFF, BIN);
+//  Serial.println(0x7FFFFFFF, DEC);
+//  Serial.println(0x7FFFFFFF, HEX);
+//  Serial.println(0x7FFFFFFF, BIN);
+//  Serial.println(0x00000000, DEC);
+//  Serial.println(0x00000000, HEX);
+//  Serial.println(0x00000000, BIN);
+//  Serial.println(        -1, DEC);
+//  Serial.println(        -1, HEX);
+//  Serial.println(        -1, BIN);
+
+  scanner(&STRANDS[2], 0, 2000);
+  scanner(&STRANDS[2], 1, 2000); // A tiny delay can smooth things out
+  scanner(&STRANDS[2], 5, 2000);
   rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 5000);
   rainbow_for_two(&STRANDS[0], &STRANDS[1], 0, 5000);
   scanner_for_two(&STRANDS[0], &STRANDS[1], 0, 2000);
