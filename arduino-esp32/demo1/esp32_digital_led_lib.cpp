@@ -1,5 +1,5 @@
 /* 
- * A library for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
+ * Library for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
@@ -59,8 +59,8 @@ extern "C" {
 #endif
 
 #if DEBUG_ESP32_DIGITAL_LED_LIB
-extern char * rgbwled_debugBuffer;
-extern int rgbwled_debugBufferSz;
+extern char * digitalLeds_debugBuffer;
+extern int digitalLeds_debugBufferSz;
 #endif
 
 const uint16_t MAX_PULSES = 32;  // A channel has a 64 "pulse" buffer - we use half per pass
@@ -106,7 +106,7 @@ typedef struct {
   uint16_t buf_pos, buf_len, buf_half, buf_isDirty;
   xSemaphoreHandle sem;
   rmtPulsePair pulsePairMap[2];
-} rgbwled_stateData;
+} digitalLeds_stateData;
 
 static strand_t * localStrands;
 static int localStrandCnt = 0;
@@ -117,10 +117,10 @@ static intr_handle_t rmt_intr_handle = nullptr;
 void copyToRmtBlock_half(strand_t * pStrand);
 void handleInterrupt(void *arg);
 
-int rgbwled_init(strand_t strands [], int numStrands)
+int digitalLeds_init(strand_t strands [], int numStrands)
 {
   #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%srgbwled_init numStrands = %d\n", rgbwled_debugBuffer, numStrands);
+    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%sdigitalLeds_init numStrands = %d\n", digitalLeds_debugBuffer, numStrands);
   #endif
 
   localStrands = strands;
@@ -145,11 +145,11 @@ int rgbwled_init(strand_t strands [], int numStrands)
       return -1;
     }
 
-    pStrand->_stateVars = static_cast<rgbwled_stateData*>(malloc(sizeof(rgbwled_stateData)));
+    pStrand->_stateVars = static_cast<digitalLeds_stateData*>(malloc(sizeof(digitalLeds_stateData)));
     if (pStrand->_stateVars == nullptr) {
       return -1;
     }
-    rgbwled_stateData * pState = static_cast<rgbwled_stateData*>(pStrand->_stateVars);
+    digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
 
     pState->buf_len = (pStrand->numPixels * ledParams.bytesPerPixel);
     pState->buf_data = static_cast<uint8_t*>(malloc(pState->buf_len));
@@ -197,25 +197,25 @@ int rgbwled_init(strand_t strands [], int numStrands)
 
   for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
-    rgbwled_resetPixels(pStrand);
+    digitalLeds_reset(pStrand);
   }
 
   return 0;
 }
 
-void rgbwled_resetPixels(strand_t * pStrand)
+void digitalLeds_reset(strand_t * pStrand)
 {
 //  pixelColor_t offColor = pixelFromRGBW(0, 0, 0, 0);
 //  for (int i = 0; i < pStrand->numPixels; i++) {
 //    pStrand->pixels[i] = offColor;
 //  }
   memset(pStrand->pixels, 0, pStrand->numPixels * sizeof(pixelColor_t));
-  rgbwled_setColors(pStrand);
+  digitalLeds_update(pStrand);
 }
 
-int rgbwled_setColors(strand_t * pStrand)
+int digitalLeds_update(strand_t * pStrand)
 {
-  rgbwled_stateData * pState = static_cast<rgbwled_stateData*>(pStrand->_stateVars);
+  digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
   ledParams_t ledParams = ledParamsAll[pStrand->ledType];
 // TODO: find a better way to walk / index ledParamsAll - use a state var?
 
@@ -249,7 +249,7 @@ int rgbwled_setColors(strand_t * pStrand)
   if (pState->buf_pos < pState->buf_len) {
     // Fill the other half of the buffer block
     #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%s# ", rgbwled_debugBuffer);
+      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%s# ", digitalLeds_debugBuffer);
     #endif
     copyToRmtBlock_half(pStrand);
   }
@@ -271,7 +271,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
   // This fills half an RMT block
   // When wraparound is happening, we want to keep the inactive half of the RMT block filled
 
-  rgbwled_stateData * pState = static_cast<rgbwled_stateData*>(pStrand->_stateVars);
+  digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
   ledParams_t ledParams = ledParamsAll[pStrand->ledType];
 // TODO: find a better way to walk / index ledParamsAll - use a state var?
 
@@ -301,7 +301,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
     byteval = pState->buf_data[i + pState->buf_pos];
 
     #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%s%d(", rgbwled_debugBuffer, byteval);
+      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%s%d(", digitalLeds_debugBuffer, byteval);
     #endif
 
     // Shift bits out, MSB first, setting RMTMEM.chan[n].data32[x] to
@@ -311,11 +311,11 @@ void copyToRmtBlock_half(strand_t * pStrand)
       int data32_idx = i * 8 + offset + j;
       RMTMEM.chan[pStrand->rmtChannel].data32[data32_idx].val = pState->pulsePairMap[bitval].val;
       #if DEBUG_ESP32_DIGITAL_LED_LIB
-        snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%s%d", rgbwled_debugBuffer, bitval);
+        snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%s%d", digitalLeds_debugBuffer, bitval);
       #endif
     }
     #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%s) ", rgbwled_debugBuffer);
+      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%s) ", digitalLeds_debugBuffer);
     #endif
 
     // Handle the reset bit by stretching duration1 for the final bit in the stream
@@ -323,7 +323,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
       RMTMEM.chan[pStrand->rmtChannel].data32[i * 8 + offset + 7].duration1 =
         ledParams.TRS / (RMT_DURATION_NS * DIVIDER);
       #if DEBUG_ESP32_DIGITAL_LED_LIB
-        snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%sRESET ", rgbwled_debugBuffer);
+        snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%sRESET ", digitalLeds_debugBuffer);
       #endif
     }
   }
@@ -336,7 +336,7 @@ void copyToRmtBlock_half(strand_t * pStrand)
   pState->buf_pos += len;
 
   #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%s ", rgbwled_debugBuffer);
+    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%s ", digitalLeds_debugBuffer);
   #endif
 
   return;
@@ -347,12 +347,12 @@ void handleInterrupt(void *arg)
   portBASE_TYPE taskAwoken = 42;  // TODO: does this value actually matter?
 
   #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(rgbwled_debugBuffer, rgbwled_debugBufferSz, "%sRMT.int_st.val = %08x\n", rgbwled_debugBuffer, RMT.int_st.val);
+    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz, "%sRMT.int_st.val = %08x\n", digitalLeds_debugBuffer, RMT.int_st.val);
   #endif
 
   for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
-    rgbwled_stateData * pState = static_cast<rgbwled_stateData*>(pStrand->_stateVars);
+    digitalLeds_stateData * pState = static_cast<digitalLeds_stateData*>(pStrand->_stateVars);
 
     if (RMT.int_st.val & tx_thr_event_offsets[pStrand->rmtChannel])
     {  // tests RMT.int_st.ch<n>_tx_thr_event

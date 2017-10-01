@@ -86,7 +86,7 @@ void displayOff(strand_t * pStrand)
   for (int i = 0; i < pStrand->numPixels; i++) {
     pStrand->pixels[i] = offColor;
   }
-  rgbwled_setColors(pStrand);
+  digitalLeds_update(pStrand);
 }
 
 uint32_t IRAM_ATTR millis()
@@ -154,7 +154,7 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
         break;
       }
     }
-    rgbwled_setColors(pStrand);
+    digitalLeds_update(pStrand);
     delay(delay_ms);
   }
   displayOff(pStrand);
@@ -165,7 +165,7 @@ void app_main() {
   gpioSetup(17, OUTPUT, LOW);
   gpioSetup(18, OUTPUT, LOW);
   gpioSetup(19, OUTPUT, LOW);
-  if (rgbwled_init(STRANDS, STRANDCNT)) {
+  if (digitalLeds_init(STRANDS, STRANDCNT)) {
     ets_printf("Init FAILURE: halting\n");
     while (true) {};
   }

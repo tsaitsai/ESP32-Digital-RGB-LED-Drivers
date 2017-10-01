@@ -1,5 +1,5 @@
 /*
- * A library for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
+ * Library for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
@@ -77,9 +77,9 @@ const ledParams_t ledParamsAll[] = {  // MUST match order of led_types!
   { .ledType = LED_SK6812W, .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
 };
 
-extern int rgbwled_init(strand_t strands [], int numStrands);
-extern int rgbwled_setColors(strand_t * strand);
-extern void rgbwled_resetPixels(strand_t * pStrand);
+extern int digitalLeds_init(strand_t strands [], int numStrands);
+extern int digitalLeds_update(strand_t * strand);
+extern void digitalLeds_reset(strand_t * pStrand);
 
 inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b)
 {
