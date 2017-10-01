@@ -1,13 +1,10 @@
 /* 
- * Demo code for digital RGB LEDs using the RMT peripheral on the ESP32
+ * Demo code for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
  * Based on public domain code created 19 Nov 2016 by Chris Osborn <fozztexx@fozztexx.com>
  * http://insentricity.com
- *
- * The RMT peripheral on the ESP32 provides very accurate timing of
- * signals sent to the WS2812 LEDs.
  *
  */
 /* 
@@ -35,7 +32,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <math.h>
-#include "ws2812.h"
+#include "esp32_digital_led_lib.h"
 
 #ifndef __cplusplus
 #define nullptr  NULL
@@ -89,7 +86,7 @@ void displayOff(strand_t * pStrand)
   for (int i = 0; i < pStrand->numPixels; i++) {
     pStrand->pixels[i] = offColor;
   }
-  ws2812_setColors(pStrand);
+  rgbwled_setColors(pStrand);
 }
 
 uint32_t IRAM_ATTR millis()
@@ -157,7 +154,7 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
         break;
       }
     }
-    ws2812_setColors(pStrand);
+    rgbwled_setColors(pStrand);
     delay(delay_ms);
   }
   displayOff(pStrand);
@@ -168,7 +165,7 @@ void app_main() {
   gpioSetup(17, OUTPUT, LOW);
   gpioSetup(18, OUTPUT, LOW);
   gpioSetup(19, OUTPUT, LOW);
-  if (ws2812_init(STRANDS, STRANDCNT)) {
+  if (rgbwled_init(STRANDS, STRANDCNT)) {
     ets_printf("Init FAILURE: halting\n");
     while (true) {};
   }

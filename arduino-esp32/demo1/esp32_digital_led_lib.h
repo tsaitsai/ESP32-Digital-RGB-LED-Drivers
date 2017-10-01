@@ -1,5 +1,5 @@
 /*
- * A driver for digital RGB LEDs using the RMT peripheral on the ESP32
+ * A library for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
@@ -27,8 +27,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef WS2812_DRIVER_H
-#define WS2812_DRIVER_H
+#ifndef ESP32_DIGITAL_LED_LIB_H
+#define ESP32_DIGITAL_LED_LIB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +36,7 @@ extern "C" {
 
 #include <stdint.h>
 
-#define DEBUG_WS2812_DRIVER 0
+#define DEBUG_ESP32_DIGITAL_LED_LIB 0
 
 typedef union {
   struct __attribute__ ((packed)) {
@@ -77,9 +77,9 @@ const ledParams_t ledParamsAll[] = {  // MUST match order of led_types!
   { .ledType = LED_SK6812W, .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
 };
 
-extern int ws2812_init(strand_t strands [], int numStrands);
-extern int ws2812_setColors(strand_t * strand);
-extern void ws2812_resetPixels(strand_t * pStrand);
+extern int rgbwled_init(strand_t strands [], int numStrands);
+extern int rgbwled_setColors(strand_t * strand);
+extern void rgbwled_resetPixels(strand_t * pStrand);
 
 inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -105,5 +105,5 @@ inline pixelColor_t pixelFromRGBW(uint8_t r, uint8_t g, uint8_t b, uint8_t w)
 }
 #endif
 
-#endif /* WS2812_DRIVER_H */
+#endif /* ESP32_DIGITAL_LED_LIB_H */
 

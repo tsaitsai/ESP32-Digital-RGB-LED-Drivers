@@ -1,13 +1,10 @@
 /* 
- * Demo code for digital RGB LEDs using the RMT peripheral on the ESP32
+ * Demo code for driving digital RGB(W) LEDs using the ESP32's RMT peripheral
  *
  * Modifications Copyright (c) 2017 Martin F. Falatic
  *
  * Based on public domain code created 19 Nov 2016 by Chris Osborn <fozztexx@fozztexx.com>
  * http://insentricity.com
- *
- * The RMT peripheral on the ESP32 provides very accurate timing of
- * signals sent to the WS2812 LEDs.
  *
  */
 /* 
@@ -30,7 +27,7 @@
  * THE SOFTWARE.
  */
 
-#include "ws2812.h"
+#include "esp32_digital_led_lib.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
   // No extras
@@ -40,10 +37,11 @@
   #include "arduinoish.hpp"
 #endif
 
-// Required if debugging is enabled in WS2812 header
-#if DEBUG_WS2812_DRIVER
-  int ws2812_debugBufferSz = 1024;
-  char * ws2812_debugBuffer = static_cast<char*>(calloc(ws2812_debugBufferSz, sizeof(char)));
+// **Required** if debugging is enabled in library header
+// TODO: remove requirement?
+#if DEBUG_ESP32_DIGITAL_LED_LIB
+  int rgbwled_debugBufferSz = 1024;
+  char * rgbwled_debugBuffer = static_cast<char*>(calloc(rgbwled_debugBufferSz, sizeof(char)));
 #endif
 
 void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
@@ -108,16 +106,16 @@ void scanner_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
     pStrand2->pixels[prevIdx2] = offColor;
     pStrand1->pixels[currIdx1] = newColor1;
     pStrand2->pixels[currIdx2] = newColor2;
-    ws2812_setColors(pStrand1);
-    ws2812_setColors(pStrand2);
+    rgbwled_setColors(pStrand1);
+    rgbwled_setColors(pStrand2);
     prevIdx1 = currIdx1;
     prevIdx2 = currIdx2;
     currIdx1 = (currIdx1 + 1) % pStrand1->numPixels;
     currIdx2 = (currIdx2 + 1) % pStrand2->numPixels;
     delay(delay_ms);
   }
-  ws2812_resetPixels(pStrand1);
-  ws2812_resetPixels(pStrand2);
+  rgbwled_resetPixels(pStrand1);
+  rgbwled_resetPixels(pStrand2);
 }
 
 void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
@@ -133,7 +131,7 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     pStrand->pixels[prevIdx] = pixelFromRGBW(0, 0, 0, 0);
     pStrand->pixels[currIdx] = pixelFromRGBW(pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit, pStrand->brightLimit);
     // Serial.println(currIdx);
-    ws2812_setColors(pStrand);
+    rgbwled_setColors(pStrand);
     prevIdx = currIdx;
     currIdx++;
     if (currIdx >= pStrand->numPixels) {
@@ -141,7 +139,7 @@ void scanner(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     }
     delay(delay_ms);
   }
-  ws2812_resetPixels(pStrand);
+  rgbwled_resetPixels(pStrand);
 }
 
 class Rainbower {
@@ -213,7 +211,7 @@ void Rainbower::drawNext()
     if (i == 0){
     }
   }
-  ws2812_setColors(pStrand);
+  rgbwled_setColors(pStrand);
 }
 
 void rainbow_for_three(strand_t * pStrand1, strand_t * pStrand2, strand_t * pStrand3, unsigned long delay_ms, unsigned long timeout_ms)
@@ -244,9 +242,9 @@ void rainbow_for_three(strand_t * pStrand1, strand_t * pStrand2, strand_t * pStr
     pRbow3->drawNext();
     delay(delay_ms);
   }
-  ws2812_resetPixels(pStrand1);
-  ws2812_resetPixels(pStrand2);
-  ws2812_resetPixels(pStrand3);
+  rgbwled_resetPixels(pStrand1);
+  rgbwled_resetPixels(pStrand2);
+  rgbwled_resetPixels(pStrand3);
 }
 
 void rainbow_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long delay_ms, unsigned long timeout_ms)
@@ -264,8 +262,8 @@ void rainbow_for_two(strand_t * pStrand1, strand_t * pStrand2, unsigned long del
     pRbow2->drawNext();
     delay(delay_ms);
   }
-  ws2812_resetPixels(pStrand1);
-  ws2812_resetPixels(pStrand2);
+  rgbwled_resetPixels(pStrand1);
+  rgbwled_resetPixels(pStrand2);
 }
 
 void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_ms)
@@ -284,7 +282,7 @@ void rainbow(strand_t * pStrand, unsigned long delay_ms, unsigned long timeout_m
     delay(delay_ms);
   }
   //delete pRbow; // risky if you forget this! Or free memory out of sequence...
-  ws2812_resetPixels(pStrand);
+  rgbwled_resetPixels(pStrand);
 }
 
 void test_loop()
@@ -299,10 +297,10 @@ void test_loop()
       pStrand->pixels[0] = pixelFromRGB(2, 1, 3);
       pStrand->pixels[1] = pixelFromRGB(5, 4, 6);
       pStrand->pixels[2] = pixelFromRGB(8, 7, 9);
-      ws2812_setColors(pStrand);
+      rgbwled_setColors(pStrand);
     }
-    #if DEBUG_WS2812_DRIVER
-      dumpDebugBuffer(test_passes, ws2812_debugBuffer);
+    #if DEBUG_ESP32_DIGITAL_LED_LIB
+      dumpDebugBuffer(test_passes, rgbwled_debugBuffer);
     #endif
     delay(1);
   }
@@ -396,7 +394,7 @@ void setup()
   gpioSetup(18, OUTPUT, LOW);
   gpioSetup(19, OUTPUT, LOW);
 
-  if (ws2812_init(STRANDS, STRANDCNT)) {
+  if (rgbwled_init(STRANDS, STRANDCNT)) {
     Serial.println("Init FAILURE: halting");
     while (true) {};
   }
@@ -407,12 +405,12 @@ void setup()
     Serial.print(" = ");
     Serial.print((uint32_t)(pStrand->pixels), HEX);
     Serial.println();
-    #if DEBUG_WS2812_DRIVER
-      dumpDebugBuffer(-2, ws2812_debugBuffer);
+    #if DEBUG_ESP32_DIGITAL_LED_LIB
+      dumpDebugBuffer(-2, rgbwled_debugBuffer);
     #endif
-    ws2812_resetPixels(pStrand);
-    #if DEBUG_WS2812_DRIVER
-      dumpDebugBuffer(-1, ws2812_debugBuffer);
+    rgbwled_resetPixels(pStrand);
+    #if DEBUG_ESP32_DIGITAL_LED_LIB
+      dumpDebugBuffer(-1, rgbwled_debugBuffer);
     #endif
   }
   Serial.println("Init complete");
@@ -430,16 +428,16 @@ void loop()
   rainbow_for_three(&STRANDS[0], &STRANDS[1], &STRANDS[2], 0, 5000);
   rainbow_for_two(&STRANDS[0], &STRANDS[1], 0, 5000);
   scanner_for_two(&STRANDS[0], &STRANDS[1], 0, 2000);
-  #if DEBUG_WS2812_DRIVER
-    dumpDebugBuffer(0, ws2812_debugBuffer);
+  #if DEBUG_ESP32_DIGITAL_LED_LIB
+    dumpDebugBuffer(0, rgbwled_debugBuffer);
   #endif
   for (int i = 0; i < STRANDCNT; i++) {
     strand_t * pStrand = &STRANDS[i];
     rainbow(pStrand, 0, 2000);
     scanner(pStrand, 0, 2000);
-    ws2812_resetPixels(pStrand);
-    #if DEBUG_WS2812_DRIVER
-      dumpDebugBuffer(test_passes, ws2812_debugBuffer);
+    rgbwled_resetPixels(pStrand);
+    #if DEBUG_ESP32_DIGITAL_LED_LIB
+      dumpDebugBuffer(test_passes, rgbwled_debugBuffer);
     #endif
   }
 }

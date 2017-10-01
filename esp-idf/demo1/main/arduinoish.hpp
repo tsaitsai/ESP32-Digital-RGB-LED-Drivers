@@ -1,13 +1,9 @@
 /* 
- * Arduino-like shim code for ESP32 native builds
+ * Arduino-style shim code for ESP32 native builds
  *
- * Modifications Copyright (c) 2017 Martin F. Falatic
+ * Allows Arduino-ESP32 code to build via ESP-IDF with minimal changes
  *
- * Based on public domain code created 19 Nov 2016 by Chris Osborn <fozztexx@fozztexx.com>
- * http://insentricity.com
- *
- * The RMT peripheral on the ESP32 provides very accurate timing of
- * signals sent to the WS2812 LEDs.
+ * Copyright (c) 2017 Martin F. Falatic
  *
  */
 /* 
