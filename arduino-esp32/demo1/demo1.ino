@@ -58,15 +58,17 @@ void gpioSetup(int gpioNum, int gpioMode, int gpioVal) {
 }
 
 strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-//{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels = 256,
+  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 32, .numPixels =  93,
+   .pixels = nullptr, ._stateVars = nullptr},
+  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B_V3, .brightLimit = 32, .numPixels =  93,
+   .pixels = nullptr, ._stateVars = nullptr},
+  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B_V3, .brightLimit = 32, .numPixels =  64,
+   .pixels = nullptr, ._stateVars = nullptr},
+//{.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2812B_V3, .brightLimit = 32, .numPixels = 256,
 // .pixels = nullptr, ._stateVars = nullptr},
-  {.rmtChannel = 1, .gpioNum = 17, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
-   .pixels = nullptr, ._stateVars = nullptr},
-  {.rmtChannel = 2, .gpioNum = 18, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  93,
-   .pixels = nullptr, ._stateVars = nullptr},
-  {.rmtChannel = 3, .gpioNum = 19, .ledType = LED_WS2812B, .brightLimit = 32, .numPixels =  64,
-   .pixels = nullptr, ._stateVars = nullptr},
-  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W, .brightLimit = 32, .numPixels = 300,
+//  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_SK6812W_V1, .brightLimit = 32, .numPixels = 300,
+//   .pixels = nullptr, ._stateVars = nullptr},
+  {.rmtChannel = 0, .gpioNum = 16, .ledType = LED_WS2813_V2, .brightLimit = 32, .numPixels = 300,
    .pixels = nullptr, ._stateVars = nullptr},
 };
 int STRANDCNT = sizeof(STRANDS)/sizeof(STRANDS[0]);
@@ -439,6 +441,7 @@ void loop()
   //  Serial.println(        -1, HEX);
   //  Serial.println(        -1, BIN);
 
+  scanner(&STRANDS[3], 1, 2000);
   scanner(&STRANDS[2], 0, 2000);
   scanner(&STRANDS[2], 1, 2000); // A tiny delay can smooth things out
   scanner(&STRANDS[2], 5, 2000);

@@ -12,9 +12,11 @@ The RMT peripheral of the ESP32 is used for controlling up to 8 LED "strands" (i
 
 There are working demos for Espressif's IoT Development Framework (esp-idf) and Arduino-ESP32 core. Some demos are ONLY for the ESP IDF (demonstrating C-only techniques). Otherwise, a given demo should be exactly the same on either framework.
 
-This currently works well with WS2812-type and NeoPixel RGB LEDs (3 bytes of data per LED) - SK6812 RGB LEDs should work equally well. This should also work fine with WS2813 (no hardware to test this yet).
+This library currently works well with WS2812-type and NeoPixel RGB LEDs (3 bytes of data per LED) - SK6812 RGB LEDs should work equally well. This also works fine with WS2813 (the backup channel is not used currently - tie `Backup In` to `Data In` for now).
 
-Thes also works well with SK6812 RGBW LEDs (4 bytes of data per LED). These are similar to the WS2812 LEDs, but with a white LED present as well - keep in mind that RGBW LEDs draw a fair amount of extra power versus the usual RGB LEDs due to the added white LED element present.
+This also works well with SK6812 RGBW LEDs (4 bytes of data per LED). These are similar to the WS2812 LEDs, but with a white LED present as well - keep in mind that RGBW LEDs draw a fair amount of extra power versus the usual RGB LEDs due to the added white LED element present.
+
+Timings for a given LED type can vary even within that line: use the version variant that works best for you (see `ledParamsAll` for details).
 
 <hr>
 
@@ -28,7 +30,11 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
 
 ### TODO
 
-  - WS2813 testing (update note above)
+  - ledParams - refine and clarify
+  - ledParams - lower bounds? Currently bit timing constants are pre-padded +50ns
+  - ledParams - instead of bytesPerPixel, specify color format (GRBW, RGB, etc.)?
+  - ledParams - add a small constant string as a mapping to the name?
+  - WS2813 - handle backup channel
   - Resolve open TODOs in code
   - Add more interleaved demos, and more demos in general
   - Make Arduino side a true Arduino library? May not be practical.
