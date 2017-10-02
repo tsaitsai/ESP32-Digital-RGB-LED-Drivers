@@ -30,10 +30,26 @@ Please see the `sdkconfig.defaults` file for details. If you run `make menuconfi
 
 ### TODO
 
+Make the whole library a proper class - more robust and extensible!
+
+- API TODO:
+  - init --> initStrands
+  - setColors --> update --> setPixels (per strand)
+  - (n/a) --> refreshPixels (per strand)
+  - (n/a) --> reset --> clearPixels (per strand)
+
+- Future TODO:
+  - (n/a) --> updateTimings (for fine-tuning, debugging, or marginal/odd devices)
+  - (n/a) --> updateType (for fine-tuning, debugging, or marginal/odd devices)
+  - (n/a) --> addStrand/deleteStrand? (maybe not...)
+
+Other:
   - ledParams - refine and clarify
   - ledParams - lower bounds? Currently bit timing constants are pre-padded +50ns
-  - ledParams - instead of bytesPerPixel, specify color format (GRBW, RGB, etc.)?
   - ledParams - add a small constant string as a mapping to the name?
+    - Nope! C99 designator 'name' outside aggregate initializer
+  - ledParams - instead of bytesPerPixel, specify color format (GRBW, RGB, etc.)?
+    - Would have the same problem as naming...
   - WS2813 - handle backup channel
   - Resolve open TODOs in code
   - Add more interleaved demos, and more demos in general
